@@ -120,6 +120,38 @@ When given a task:
    - what could not be tested
    - remaining blockers
    - exact next human action, if any
+## ATOM-Pi mission
+
+The goal of this repository is to produce a working ATOM-Pi system, not merely
+a successful software installation.
+
+The completed experience is:
+
+- local-first AI with internet access when needed
+- full-body ATOM robot UI, not only a face
+- voice-first, hands-free interaction
+- wake word when the real model is trained and physically validated
+- camera vision when required
+- local AI reasoning
+- speech output
+- visible thinking behavior, including the arm raising and hand tapping the head
+  while ATOM is genuinely processing
+- persistent ATOM visual identity across all states
+- optional external USB knowledge library, including Kiwix content
+- normal Raspberry Pi desktop access when the user needs it
+- clear system status and diagnostics
+- graceful degradation when hardware, internet, or the USB library is unavailable
+
+The existing architecture and pinned upstream components should be preserved
+unless a verified defect requires a change.
+
+The objective is to finish, integrate, test, and harden this experience.
+
+Do not replace a working subsystem merely to make the code more elegant,
+modern, abstract, or technically interesting.
+
+Do not declare ATOM-Pi READY until the required physical validation has actually
+been performed.
 
 ## Layout
 
