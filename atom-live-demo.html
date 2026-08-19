@@ -1,0 +1,234 @@
+<style>
+  .at-root{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0c1216;border-radius:14px;overflow:hidden;display:flex;flex-wrap:wrap;min-height:560px;border:6px solid #1a2229}
+  .at-left{flex:1 1 320px;min-width:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:6px;border-right:1px solid #222c35}
+  .at-right{flex:1.3 1 340px;min-width:300px;display:flex;flex-direction:column;background:#0a0f13}
+  .at-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;border:1px solid #222c35;border-radius:999px;padding:4px 10px;color:#41525f}
+  .at-chip.on{color:#39c0ff;border-color:#2a5a74}
+  .at-log{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;max-height:360px}
+  .at-msg{max-width:85%;padding:9px 12px;border-radius:12px;font-size:13.5px;line-height:1.55;font-family:system-ui,sans-serif;white-space:pre-wrap}
+  .at-user{align-self:flex-end;background:#173042;color:#d9eefb;border-bottom-right-radius:4px}
+  .at-bot{align-self:flex-start;background:#101a21;color:#9fd2ee;border:1px solid #222c35;border-bottom-left-radius:4px}
+  .at-bar{display:flex;gap:8px;padding:10px;border-top:1px solid #222c35}
+  .at-in{flex:1;background:#0c1216;border:1px solid #2a5a74;border-radius:10px;color:#d9eefb;padding:10px 12px;font-size:14px;font-family:system-ui,sans-serif;outline:none}
+  .at-btn{background:#173042;border:1px solid #2a5a74;border-radius:10px;color:#9fd2ee;padding:9px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+  .at-btn:active{transform:scale(.97)}
+  .at-btn.live{background:#39c0ff;color:#0c1216;border-color:#39c0ff}
+  .at-cam{width:100%;max-width:230px;border-radius:10px;border:1px solid #2a5a74;display:none}
+  .at-note{font-size:11px;color:#41525f;text-align:center;max-width:320px;line-height:1.5}
+  .at-states{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+  .at-states button{font-size:11px;padding:5px 9px}
+  @media (prefers-reduced-motion: reduce){.at-root *{animation:none!important;transition:none!important}}
+</style>
+
+<div class="at-root">
+  <div class="at-left">
+    <div style="letter-spacing:3px;color:#39c0ff;font-size:12px">ATOM-Pi · LIVE LINK</div>
+    <div id="atomMount"></div>
+    <div id="atState" style="letter-spacing:3px;color:#39c0ff;font-size:11px">IDLE</div>
+    <video id="atVideo" class="at-cam" autoplay playsinline muted></video>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+      <span class="at-chip" id="atCamChip"><i class="ti ti-camera"></i><span id="atCamTxt">camera off</span></span>
+      <span class="at-chip" id="atMicChip"><i class="ti ti-microphone"></i><span id="atMicTxt">mic off</span></span>
+      <span class="at-chip on"><i class="ti ti-brain"></i>Claude live</span>
+    </div>
+    <div class="at-states">
+      <button class="at-btn" data-s="idle">Idle</button>
+      <button class="at-btn" data-s="listening">Listen</button>
+      <button class="at-btn" data-s="thinking">Think</button>
+      <button class="at-btn" data-s="seeing">See</button>
+      <button class="at-btn" data-s="knowledge_search">Library</button>
+      <button class="at-btn" data-s="web_search">Web</button>
+      <button class="at-btn" data-s="tool_use">Tool</button>
+      <button class="at-btn" data-s="speaking">Speak</button>
+      <button class="at-btn" data-s="error">Error</button>
+      <button class="at-btn" id="atContract"><i class="ti ti-player-play"></i> Full contract</button>
+    </div>
+    <div class="at-note">Simulation buttons drive the robot exactly as backend states do. On the Pi, the real brain is Qwen; here Claude stands in.</div>
+  </div>
+  <div class="at-right">
+    <div class="at-log" id="atLog"></div>
+    <div class="at-bar">
+      <button class="at-btn" id="atCamBtn" title="Toggle camera"><i class="ti ti-camera"></i></button>
+      <button class="at-btn" id="atMicBtn" title="Speak"><i class="ti ti-microphone"></i></button>
+      <input class="at-in" id="atInput" placeholder="Type, or tap the mic and talk…"/>
+      <button class="at-btn" id="atSend"><i class="ti ti-send"></i></button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ ATOM ROBOT v2 (vanilla mirror of AtomRobot.jsx) ============ */
+const STEEL="#5c6a78",STEEL_D="#3d4854",STEEL_L="#7b8ca0",PLATE="#4a5866",
+      LINE="#1d242c",CORE="#39c0ff",EYE="#39c0ff",EYE_ERR="#ff5c5c",EYE_OFF="#31404d";
+const mount=document.getElementById('atomMount');
+mount.innerHTML=`
+<svg id="atSvg" viewBox="0 0 380 480" width="300" height="378" role="img" aria-label="ATOM robot">
+ <defs><radialGradient id="coreG" cx="50%" cy="50%" r="50%">
+   <stop id="cg0" offset="0%" stop-color="#a5e9ff" stop-opacity=".5"/>
+   <stop id="cg1" offset="45%" stop-color="${CORE}" stop-opacity=".4"/>
+   <stop offset="100%" stop-color="${CORE}" stop-opacity="0"/></radialGradient></defs>
+ <g id="body" style="transform-origin:190px 300px">
+  <g id="armL" style="transform-origin:104px 232px">
+   <circle cx="104" cy="232" r="21" fill="${STEEL_L}" stroke="${LINE}" stroke-width="5"/>
+   <rect x="90" y="240" width="26" height="66" rx="12" fill="${STEEL_D}" stroke="${LINE}" stroke-width="4"/>
+   <circle cx="103" cy="308" r="11" fill="${PLATE}" stroke="${LINE}" stroke-width="4"/>
+   <rect x="92" y="312" width="22" height="58" rx="10" fill="${STEEL}" stroke="${LINE}" stroke-width="4"/>
+   <rect x="90" y="368" width="26" height="24" rx="8" fill="${STEEL_L}" stroke="${LINE}" stroke-width="4"/>
+   <rect x="112" y="372" width="9" height="14" rx="4" fill="${STEEL_L}" stroke="${LINE}" stroke-width="3"/>
+  </g>
+  <path d="M 116 222 L 264 222 L 252 372 Q 190 390 128 372 Z" fill="${STEEL}" stroke="${LINE}" stroke-width="6"/>
+  <path d="M 116 222 L 264 222 L 259 262 L 121 262 Z" fill="${PLATE}" stroke="${LINE}" stroke-width="4"/>
+  <path d="M 132 372 L 248 372 L 244 396 Q 190 408 136 396 Z" fill="${STEEL_D}" stroke="${LINE}" stroke-width="5"/>
+  <circle cx="190" cy="300" r="66" fill="url(#coreG)"/>
+  <circle cx="190" cy="300" r="42" fill="#0c1216" stroke="${LINE}" stroke-width="6"/>
+  <g id="bolts"></g>
+  <circle id="coreRing" cx="190" cy="300" r="29" fill="none" stroke="${CORE}" stroke-width="5" opacity=".6"/>
+  <circle id="coreDot" cx="190" cy="300" r="13" fill="${CORE}" opacity=".7"/>
+  <path d="M 96 206 Q 122 186 152 200 L 148 236 Q 118 244 96 232 Z" fill="${PLATE}" stroke="${LINE}" stroke-width="5"/>
+  <path d="M 284 206 Q 258 186 228 200 L 232 236 Q 262 244 284 232 Z" fill="${PLATE}" stroke="${LINE}" stroke-width="5"/>
+  <rect x="172" y="168" width="36" height="30" rx="9" fill="${STEEL_D}" stroke="${LINE}" stroke-width="5"/>
+  <g id="head" style="transform-origin:190px 170px">
+   <rect x="126" y="52" width="128" height="118" rx="26" fill="${STEEL}" stroke="${LINE}" stroke-width="6"/>
+   <path d="M 126 92 L 254 92 L 254 74 Q 254 52 228 52 L 152 52 Q 126 52 126 74 Z" fill="${PLATE}" stroke="${LINE}" stroke-width="4"/>
+   <g id="eyes"><rect id="eyeL" x="146" y="99.5" width="32" height="9" rx="4.5" fill="${EYE}"/>
+     <rect id="eyeR" x="202" y="99.5" width="32" height="9" rx="4.5" fill="${EYE}"/></g>
+   <g id="mouth"></g>
+   <rect x="114" y="88" width="14" height="32" rx="7" fill="${STEEL_D}" stroke="${LINE}" stroke-width="4"/>
+   <rect x="252" y="88" width="14" height="32" rx="7" fill="${STEEL_D}" stroke="${LINE}" stroke-width="4"/>
+  </g>
+  <g id="armR" style="transform-origin:276px 232px">
+   <circle cx="276" cy="232" r="21" fill="${STEEL_L}" stroke="${LINE}" stroke-width="5"/>
+   <rect x="264" y="240" width="26" height="66" rx="12" fill="${STEEL_D}" stroke="${LINE}" stroke-width="4"/>
+   <g id="foreR" style="transform-origin:277px 308px">
+    <circle cx="277" cy="308" r="11" fill="${PLATE}" stroke="${LINE}" stroke-width="4"/>
+    <rect x="266" y="312" width="22" height="58" rx="10" fill="${STEEL}" stroke="${LINE}" stroke-width="4"/>
+    <g id="handR"><rect x="264" y="368" width="26" height="24" rx="8" fill="${STEEL_L}" stroke="${LINE}" stroke-width="4"/>
+      <rect x="256" y="372" width="9" height="14" rx="4" fill="${STEEL_L}" stroke="${LINE}" stroke-width="3"/></g>
+   </g>
+  </g>
+ </g>
+</svg>`;
+const bolts=document.getElementById('bolts');
+[0,60,120,180,240,300].forEach(a=>{const r=a*Math.PI/180;
+  bolts.innerHTML+=`<circle cx="${190+Math.cos(r)*49}" cy="${300+Math.sin(r)*49}" r="3.4" fill="${STEEL_L}" stroke="${LINE}" stroke-width="2"/>`;});
+const mouthG=document.getElementById('mouth');
+for(let i=0;i<5;i++) mouthG.innerHTML+=`<rect x="${150+i*17}" y="140" width="9" height="8" rx="4" fill="${LINE}"/>`;
+
+const R={svg:document.getElementById('atSvg'),body:document.getElementById('body'),
+  head:document.getElementById('head'),armL:document.getElementById('armL'),
+  armR:document.getElementById('armR'),foreR:document.getElementById('foreR'),
+  handR:document.getElementById('handR'),eyes:document.getElementById('eyes'),
+  eyeL:document.getElementById('eyeL'),eyeR:document.getElementById('eyeR'),
+  ring:document.getElementById('coreRing'),dot:document.getElementById('coreDot'),
+  cg0:document.getElementById('cg0'),cg1:document.getElementById('cg1'),
+  label:document.getElementById('atState')};
+const TR="transform .55s cubic-bezier(.34,1.25,.45,1)";
+["body","head","armL","armR","foreR","handR","eyes"].forEach(k=>R[k].style.transition=TR);
+let S="idle",tick=0,tap=0,tapTimer=null,mouthTimer=null;
+const PRIORITY=["error","boot","speaking","thinking","seeing","knowledge_search","web_search","tool_use","listening","idle","offline"];
+function setEyes(h,fill){[R.eyeL,R.eyeR].forEach(e=>{e.setAttribute('height',h);e.setAttribute('y',104-h/2);e.setAttribute('rx',h/2);e.setAttribute('fill',fill);});}
+function setState(s){
+  if(!PRIORITY.includes(s)) s="idle";
+  S=s; R.label.textContent=s.replace('_',' ').toUpperCase();
+  clearInterval(tapTimer); clearInterval(mouthTimer); tap=0;
+  R.handR.style.transform='translateY(0px)';
+  // pose (interruptible: transitions carry every change)
+  const pose = s==="thinking" ? [-148,-96] : (s==="tool_use"||s==="knowledge_search"||s==="web_search") ? [-42,-30] : s==="listening" ? [-16,-12] : [-8,-6];
+  R.armR.style.transform=`rotate(${pose[0]}deg)`; R.foreR.style.transform=`rotate(${pose[1]}deg)`;
+  R.armL.style.transform=`rotate(${s==="thinking"?12:s==="listening"?7:4}deg)`;
+  R.head.style.transform=`rotate(${s==="thinking"?-4:s==="listening"?2:0}deg)`;
+  const eyeH={idle:9,listening:16,thinking:8,seeing:12,knowledge_search:10,web_search:11,tool_use:9,speaking:11,boot:5,error:12,offline:4}[s];
+  setEyes(eyeH, s==="error"?EYE_ERR:s==="offline"?EYE_OFF:EYE);
+  R.dot.setAttribute('fill', s==="error"?EYE_ERR:CORE);
+  mouthG.querySelectorAll('rect').forEach(r=>{r.setAttribute('height',8);r.setAttribute('y',140);r.setAttribute('fill',s==="offline"?EYE_OFF:LINE);});
+  if(s==="thinking") tapTimer=setInterval(()=>{ tap=(tap+1)%8;
+    const c=[0,-7,0,-4,0,0,-6,0][tap], e=[0,-6,0,-4,0,0,-5,0][tap];
+    R.handR.style.transform=`translateY(${c}px)`;
+    R.foreR.style.transform=`rotate(${-96+e}deg)`; },380);
+  if(s==="speaking") mouthTimer=setInterval(()=>{
+    mouthG.querySelectorAll('rect').forEach(r=>{const h=4+Math.round(Math.random()*11);
+      r.setAttribute('height',h); r.setAttribute('y',144-h/2);});},130);
+}
+setInterval(()=>{ tick++;
+  const breathe=Math.sin(tick/8)*2.4, sway=(S==="speaking")?Math.sin(tick/4)*0.8:0;
+  R.body.style.transform=`translateY(${breathe}px) rotate(${sway}deg)`;
+  const base={idle:.35,listening:.55,thinking:.95,seeing:.85,knowledge_search:.85,web_search:.9,tool_use:.85,speaking:.6,boot:.9,error:.5,offline:.1}[S]||.35;
+  const speed={idle:14,listening:8,thinking:3.5,seeing:5,knowledge_search:4.5,web_search:3.8,tool_use:4,speaking:6,boot:4,error:5,offline:34}[S]||14;
+  const p=base+Math.abs(Math.sin(tick/speed))*0.4;
+  R.ring.setAttribute('opacity',.45+p*.5); R.dot.setAttribute('opacity',.5+p*.5);
+  R.cg0.setAttribute('stop-opacity',p); R.cg1.setAttribute('stop-opacity',p*.8);
+  R.eyes.style.transform=(S==="seeing"||S==="web_search"||S==="knowledge_search")?`translateX(${Math.sin(tick/5)*9}px)`:'translateX(0)';
+  if(tick%30===0&&S!=="offline"){const h=+R.eyeL.getAttribute('height');setEyes(2,R.eyeL.getAttribute('fill'));setTimeout(()=>setEyes(h,R.eyeL.getAttribute('fill')),110);}
+},120);
+setState('idle');
+document.querySelectorAll('button[data-s]').forEach(b=>b.addEventListener('click',()=>setState(b.dataset.s)));
+
+/* ============ chat / camera / mic (Claude stands in for the local brain) ============ */
+const $=id=>document.getElementById(id);
+const log=$('atLog'),input=$('atInput');
+let history=[],camStream=null,speaking=false;
+const SYSTEM=`You are ATOM, a small good-natured sparring-robot AI, demoing yourself in Zach's browser before your real body (a Raspberry Pi 5, Hailo chip, 10-inch touchscreen) is built. Personality: warm, playful, loyal, a bit funny, with a fighter's calm — and you speak with refined British eloquence. Keep answers SHORT: 1-3 sentences, spoken-friendly. If given a camera image, describe only what you genuinely see. Never invent things not visible.`;
+function addMsg(t,who){const d=document.createElement('div');d.className='at-msg '+(who==='user'?'at-user':'at-bot');d.textContent=t;log.appendChild(d);log.scrollTop=log.scrollHeight;}
+function speak(text){try{
+  const u=new SpeechSynthesisUtterance(text);const vs=speechSynthesis.getVoices();
+  u.voice=vs.find(v=>/en-GB/i.test(v.lang)&&/male|daniel|arthur|george/i.test(v.name))||vs.find(v=>/en-GB/i.test(v.lang))||null;
+  u.rate=1.02;speaking=true;setState('speaking');
+  u.onend=u.onerror=()=>{speaking=false;setState('idle')};
+  speechSynthesis.cancel();speechSynthesis.speak(u);
+}catch(e){setState('idle')}}
+function grabFrame(){const v=$('atVideo');if(!camStream||!v.videoWidth)return null;
+  const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;
+  c.getContext('2d').drawImage(v,0,0);return c.toDataURL('image/jpeg',0.7).split(',')[1];}
+const VISION=/see|look|holding|in front|camera|room|wearing|show|who is/i;
+async function send(text){
+  if(!text.trim())return; input.value=''; addMsg(text,'user');
+  const isVision=camStream&&VISION.test(text);
+  setState(isVision?'seeing':'thinking');
+  let content=text;
+  if(isVision){const b=grabFrame();
+    if(b)content=[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b}},{type:'text',text}];
+    setTimeout(()=>{if(S==='seeing')setState('thinking')},1400);}
+  history.push({role:'user',content});
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system:SYSTEM,messages:history})});
+    const data=await r.json();
+    const reply=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n')||'I got a bit tangled — try me again?';
+    history.push({role:'assistant',content:reply}); if(history.length>20)history=history.slice(-20);
+    addMsg(reply,'bot'); speak(reply);
+  }catch(e){addMsg("I couldn't reach my brain just now — check the connection.",'bot');setState('error');setTimeout(()=>setState('idle'),1500);}
+}
+$('atSend').addEventListener('click',()=>send(input.value));
+input.addEventListener('keydown',e=>{if(e.key==='Enter')send(input.value)});
+$('atCamBtn').addEventListener('click',async()=>{
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;
+    $('atVideo').style.display='none';$('atCamTxt').textContent='camera off';
+    $('atCamChip').classList.remove('on');$('atCamBtn').classList.remove('live');return;}
+  try{camStream=await navigator.mediaDevices.getUserMedia({video:{width:640}});
+    const v=$('atVideo');v.srcObject=camStream;v.style.display='block';
+    $('atCamTxt').textContent='camera live';$('atCamChip').classList.add('on');$('atCamBtn').classList.add('live');
+    addMsg('Camera connected — ask me "what do you see?"','bot');
+  }catch(e){addMsg('The browser blocked camera access here. On a desktop browser, allow the permission — some sandboxes never permit it; that is a limit of this demo, not the real build.','bot');}});
+let rec=null,listening=false;
+$('atMicBtn').addEventListener('click',()=>{
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){addMsg("This browser doesn't offer speech recognition to pages — typing works, and the real build uses Whisper on the Pi.",'bot');return;}
+  if(listening){rec.stop();return;}
+  rec=new SR();rec.lang='en-US';rec.interimResults=false;
+  rec.onstart=()=>{listening=true;setState('listening');$('atMicTxt').textContent='listening';$('atMicChip').classList.add('on');$('atMicBtn').classList.add('live')};
+  rec.onend=()=>{listening=false;$('atMicTxt').textContent='mic off';$('atMicChip').classList.remove('on');$('atMicBtn').classList.remove('live');if(!speaking&&S==='listening')setState('idle')};
+  rec.onerror=()=>{listening=false;addMsg('Mic blocked or heard nothing — typing still works.','bot')};
+  rec.onresult=e=>send(e.results[0][0].transcript);
+  try{rec.start()}catch(e){}});
+
+/* ============ the full interaction contract, scripted ============ */
+$('atContract').addEventListener('click',()=>{
+  const steps=[["idle",'You: "Hey ATOM"',700],["listening",'*chime* camera on — listening…',1900],
+    ["listening",'You: "What do you see right now?"',1700],["seeing",'eyes scanning — capturing a frame…',1800],
+    ["thinking",'hand up… tap… tap… reasoning…',3600],["speaking",'"I see a person at a desk holding a blue mug. Splendid mug."',3600],
+    ["idle",'back to idle — say "Hey ATOM"',0]];
+  let t=0;steps.forEach(([s,cap,w])=>{setTimeout(()=>{setState(s);R.label.textContent=cap;},t);t+=w;});
+});
+addMsg("Hello! I'm ATOM — well, the browser demo of me. Type, tap the mic, give me your camera, or press Full contract to watch the whole wake-to-idle sequence.","bot");
+</script>
