@@ -1219,3 +1219,882 @@ CLAUDE.md
     └── How Claude Code is allowed to work on it
 ```
 
+---
+
+# 25. FINAL ATOM-Pi OPERATING CONTRACT
+
+
+This section defines the final intended ATOM-Pi experience and the handoff from the human builder to the AI coding agent.
+
+
+The existing build instructions above remain authoritative for the physical construction and installation procedure. This section adds the final integration, UX, agent, storage, validation, and completion requirements.
+
+
+## 25.1 Claude Code is the primary build agent
+
+
+Once Raspberry Pi OS is operational and the ATOM-Pi repository is available, Claude Code is the primary software-building and troubleshooting agent.
+
+
+The repository must contain:
+
+
+```text
+CLAUDE.md
+
+Claude Code must read CLAUDE.md before modifying the project.
+
+Start Claude from the ATOM-Pi repository:
+
+cd ~/atom-pi
+claude
+
+Initial instruction:
+
+Read CLAUDE.md first.
+
+
+Inspect the complete ATOM-Pi repository and determine the current
+implementation and installation state.
+
+
+Do not redesign the architecture.
+
+
+Do not add speculative features.
+
+
+Run every software-side diagnostic and test that can be performed
+on this machine.
+
+
+Identify anything that requires physical Raspberry Pi validation.
+
+
+Do not claim physical hardware functionality from simulation,
+documentation, compilation, or static inspection.
+
+
+If you find a real defect, make the smallest verified fix and test it.
+
+
+At the end report:
+
+
+1. What you inspected
+2. What you changed
+3. What passed
+4. What could not be tested
+5. Remaining blockers
+6. The exact next human action
+
+Claude must follow the repository's CLAUDE.md rules rather than inventing a new architecture.
+
+25.2 Source-of-truth hierarchy
+
+When two pieces of information disagree, use this order:
+
+1. Actual tested ATOM-Pi code
+2. Pinned upstream implementation
+3. Repository documentation
+4. README/build-guide assumptions
+
+Do not endlessly reconcile contradictory documentation when executable behavior establishes the truth.
+
+Do not unpin upstream commits simply because a newer upstream version exists.
+
+Do not redesign a working subsystem without a demonstrated defect.
+
+25.3 No speculative feature creep
+
+The objective is to complete and harden the defined ATOM-Pi experience.
+
+Do not add capabilities merely because they are technically interesting.
+
+Prioritize:
+
+IMPLEMENT
+INTEGRATE
+TEST
+HARDEN
+VALIDATE
+
+before adding optional functionality.
+
+Prefer the simplest architecture that reliably delivers the complete ATOM-Pi experience.
+
+Every additional dependency, model, service, abstraction, or subsystem must justify its complexity.
+
+26. The ATOM experience
+
+ATOM-Pi is not intended to be merely a face on a screen.
+
+The visible robot should be a consistent full-body robot companion inspired by the physical proportions and presence of a boxing/sparring robot.
+
+The screen should show the complete robot:
+
+              HEAD
+          ┌───────────┐
+          │   EYES    │
+          │   MOUTH   │
+          └─────┬─────┘
+                │
+          ┌─────┴─────┐
+          │ SHOULDERS │
+       ARM│   TORSO   │ARM
+          │     ●     │
+          │   CORE    │
+          └───────────┘
+
+The chest contains a prominent circular power-core element.
+
+The robot's visual identity must remain consistent across:
+
+idle
+listening
+seeing
+thinking
+speaking
+tool use
+web use
+knowledge-library search
+errors
+boot
+desktop transition
+
+Do not redesign the robot for individual screens.
+
+The robot should always look like the same ATOM.
+
+27. Thinking gesture
+
+When ATOM is genuinely processing a response, the robot must visibly communicate that state.
+
+The intended gesture is:
+
+THINKING_STARTED
+      ↓
+ARM RAISES
+      ↓
+HAND TAPS HEAD
+      ↓
+THINKING CONTINUES
+      ↓
+RESPONSE READY
+      ↓
+ARM RETURNS
+
+The animation must be driven by actual backend state.
+
+It must not merely play a decorative animation whenever text appears.
+
+The architecture should allow the same state event to eventually drive physical actuators without rewriting the assistant state system.
+
+For example:
+
+THINKING_STARTED
+       ↓
+ROBOT GESTURE EVENT
+       ├── Screen animation
+       └── Future physical actuator
+
+Physical motors/servos are not required for the current build.
+
+28. Full-body identity
+
+ATOM must maintain persistent visual identity.
+
+The following should remain consistent:
+
+head proportions
+eyes
+mouth
+chest core
+torso
+arms
+overall proportions
+colors/material language
+gesture vocabulary
+
+Do not replace the robot with a generic chatbot avatar.
+
+Do not use BMO artwork or another character's artwork as the ATOM identity.
+
+The implementation should remain original while capturing the intended robot presence.
+
+29. No dead eyes
+
+ATOM must not look frozen or dead while waiting for a response.
+
+During longer operations use subtle activity such as:
+
+eye movement
+eye state changes
+chest-core activity
+breathing/body motion
+listening indication
+thinking indication
+speaking indication
+
+Do not create excessive animation merely for decoration.
+
+The goal is to communicate that the system is alive and working.
+
+30. Voice-first / hands-free operation
+
+Normal ATOM operation is voice-first.
+
+The user should not need to touch the screen for ordinary interaction.
+
+The intended interaction is:
+
+"Hey ATOM"
+      ↓
+LISTENING
+      ↓
+USER SPEAKS
+      ↓
+ATOM RESPONDS
+
+Touch remains available as a secondary control surface.
+
+The microphone button must remain available when wake-word operation has not yet been physically validated.
+
+31. Ambient-awareness boundary
+
+ATOM must have a clear privacy boundary.
+
+Wake-word detection may remain locally active.
+
+Full speech capture and contextual camera processing should begin only when required by the interaction.
+
+The user should be able to understand when ATOM is:
+
+IDLE
+LISTENING
+SEEING
+THINKING
+SPEAKING
+
+The system must not falsely imply that the camera or microphone is inactive when it is actually active.
+
+32. Internet access
+
+ATOM-Pi is:
+
+LOCAL-FIRST
++
+INTERNET-CAPABLE
+
+It is not an offline-only system.
+
+Local models and local resources should be preferred where appropriate.
+
+Internet tools may be used when the task requires current or external information and network access is available.
+
+The system must clearly distinguish local resources from internet resources.
+
+The personality layer must never claim that a web lookup occurred if it did not.
+
+Likewise, it must never claim that information came from a local library if the library was not actually queried.
+
+33. Desktop access
+
+ATOM-Pi must not permanently trap the Raspberry Pi inside a kiosk interface.
+
+The user must retain normal Raspberry Pi desktop access when needed.
+
+Desktop access may be used for:
+
+downloading files
+browsing
+managing storage
+managing the USB library
+opening terminals
+configuring the system
+ordinary computer use
+
+Desktop mode should suspend or reduce ATOM's resource-intensive AI/camera processes as appropriate so normal desktop operation remains usable.
+
+The desktop is an escape hatch and normal computer environment, not a separate ATOM product.
+
+34. MicroSD and NVMe storage
+
+The preferred primary system storage is NVMe.
+
+After the system has been successfully migrated to NVMe and NVMe boot has been verified, the microSD card may remain inserted as secondary/removable storage.
+
+The microSD may be used for:
+
+downloads
+ordinary files
+temporary storage
+backups
+other non-critical data
+
+Do not treat the microSD as the primary ATOM-Pi system disk once NVMe boot has been established.
+
+Keep critical software, models, and the operating system on NVMe.
+
+35. External USB knowledge library
+
+The large external USB drive is OPTIONAL.
+
+ATOM-Pi must function without it.
+
+If connected, the drive may contain:
+
+Kiwix .zim files
+PDFs
+EPUBs
+TXT
+Markdown
+other supported reference material
+
+The source documents should remain on the external drive.
+
+Do NOT copy an entire multi-terabyte library onto the Raspberry Pi.
+
+The intended architecture is:
+
+USB LIBRARY DRIVE
+       ↓
+LOCAL SEARCH / INDEX
+       ↓
+ATOM KNOWLEDGE MODULE
+       ↓
+ATOM
+
+The local index may be stored on the Pi, while the large source content remains on the USB drive.
+
+The system must tolerate the drive being disconnected.
+
+If the drive is absent:
+
+LIBRARY = DEGRADED / UNAVAILABLE
+
+not:
+
+SYSTEM FAILURE
+
+The optional library must never prevent ATOM from operating normally.
+
+36. Kiwix library
+
+Kiwix .zim content may be accessed from the external USB drive.
+
+The system should use the actual Kiwix retrieval mechanism rather than pretending the content has been indexed when it has not.
+
+The exact mechanism must follow the implementation in the repository.
+
+Do not invent search results.
+
+Do not claim that ATOM consulted a Kiwix source unless the source was actually queried.
+
+37. Source provenance
+
+For development and debugging, ATOM should be able to identify the source/capability that handled a request.
+
+Examples:
+
+LOCAL
+QWEN
+VISION
+HAILO
+PIPER
+WEB
+USB LIBRARY
+KIWIX
+
+This is provenance, not chain-of-thought.
+
+Do not expose private reasoning or chain-of-thought.
+
+A developer should be able to determine:
+
+Which subsystem handled this?
+
+without being shown hidden reasoning.
+
+38. System-event trace
+
+For development/debugging, expose system events rather than chain-of-thought.
+
+Example:
+
+Wake detected
+      ↓
+Transcript received
+      ↓
+Intent identified
+      ↓
+Vision requested
+      ↓
+Fresh frame captured
+      ↓
+Vision result received
+      ↓
+Model selected
+      ↓
+Tool invoked
+      ↓
+Response generated
+      ↓
+TTS started
+      ↓
+Speaking
+
+Do not expose private reasoning.
+
+The trace is for debugging the multimodal pipeline.
+
+39. Graceful hardware failures
+
+If a hardware capability is unavailable, ATOM must respond naturally.
+
+Bad:
+
+AttributeError: camera_frame is None
+
+Good:
+
+I can't access the camera right now.
+
+Likewise:
+
+I can't hear you right now.
+
+or:
+
+The library drive isn't available right now.
+
+The personality layer must not conceal the actual failure.
+
+40. Personality cannot override system truth
+
+ATOM may be friendly, humorous, conversational, or expressive.
+
+However:
+
+Personality must never override system truth.
+
+ATOM must never pretend:
+
+that it saw something it did not see
+that it heard something it did not hear
+that a web search occurred when it did not
+that a library source was consulted when it was not
+that a model is operational when it is not
+that hardware passed validation when it did not
+
+The robot can be charming.
+
+It cannot fake capability.
+
+41. Vision freshness
+
+For questions about the current environment, ATOM should use a newly captured camera frame unless the system can prove that an existing frame is sufficiently current.
+
+Avoid stale-frame answers.
+
+For example:
+
+"What is on my desk right now?"
+
+must not be answered using an old camera frame simply because one happens to be cached.
+
+42. Vision uncertainty
+
+ATOM must distinguish between confidence and uncertainty.
+
+If the vision system is uncertain, it should communicate that naturally.
+
+For example:
+
+I think that's a...
+
+rather than confidently inventing an object.
+
+The personality must not turn uncertain vision output into false certainty.
+
+43. DEMO / SIMULATION versus LIVE HARDWARE
+
+The project must distinguish:
+
+DEMO / SIMULATION
+
+from:
+
+LIVE HARDWARE
+
+A simulator can demonstrate:
+
+UI
+state transitions
+animations
+robot gestures
+event routing
+
+but it cannot prove:
+
+microphone reliability
+speaker behavior
+camera operation
+wake-word accuracy
+Hailo hardware operation
+thermal stability
+physical barge-in behavior
+
+Simulation is not hardware validation.
+
+44. Hardware safety
+
+Because ATOM-Pi is intended for a physical enclosure, use safe construction practices.
+
+Do not leave:
+
+exposed dangerous electrical connections
+unsecured wiring
+unsupported boards
+improperly mounted power supplies
+
+Provide:
+
+cable strain relief
+ventilation
+thermal clearance
+secure board mounting
+appropriate power supplies
+
+If physical arm/hand movement is added later:
+
+use safe servo/motor voltage
+provide mechanical limits
+avoid pinch points
+avoid uncontrolled movement
+provide a safe shutdown state
+
+The screen animation must remain safe even if future physical actuation is introduced.
+
+45. Versioned architecture
+
+Every validated ATOM-Pi build should be identifiable by:
+
+ATOM-Pi version
+Architecture version
+Model versions
+Hardware revision
+Upstream commit SHAs
+
+The purpose is reproducibility.
+
+A future user should be able to determine exactly which combination produced a working build.
+
+Do not silently update pinned components.
+
+46. Startup/status screen
+
+ATOM should provide a human-readable startup status.
+
+Example:
+
+ATOM-Pi
+────────────────────────
+
+
+✓ Audio
+✓ Wake Word
+✓ Camera
+✓ Hailo
+✓ Brain
+✓ Voice
+✓ Face
+✓ Internet
+✓ Knowledge Library
+
+
+READY
+
+The actual status must reflect reality.
+
+If something is unavailable:
+
+⚠ Camera
+
+or:
+
+DEGRADED — USB Library unavailable
+
+Do not show a green check merely because configuration files exist.
+
+47. Diagnostics
+
+The project must provide clear diagnostics.
+
+Use:
+
+python atom_doctor.py
+
+and the supported diagnostic flags:
+
+python atom_doctor.py --logs
+python atom_doctor.py --version
+python atom_doctor.py --sound
+python atom_doctor.py --mic
+
+The installation log should be consulted before guessing:
+
+~/atom-pi-install.log
+
+Diagnostics should distinguish:
+
+PRESENT
+FUNCTIONAL
+PHYSICALLY VALIDATED
+
+These are not interchangeable.
+
+48. Wake-word model honesty
+
+The file:
+
+hey_atom.onnx
+
+must NEVER be fabricated.
+
+Never create:
+
+an empty file
+a dummy model
+a renamed unrelated model
+a placeholder model
+a fake ONNX file
+a model merely intended to satisfy a readiness check
+
+If the actual model has not been produced:
+
+Wake Word = OFF
+
+The microphone interaction remains available.
+
+The wake-word pipeline is documented under:
+
+wakeword/
+
+The model is not considered validated merely because the file exists.
+
+Physical microphone testing remains mandatory.
+
+49. Hardware gate
+
+Hardware-dependent acceptance criteria belong to physical testing.
+
+The coding agent must prepare everything that can be prepared from the terminal.
+
+The human must perform tests requiring:
+
+physically speaking
+physically listening
+observing the physical display
+camera operation
+real wake-word behavior
+real speaker/microphone behavior
+real thermals
+physical cables
+physical USB drive behavior
+
+Never mark these tests PASS from code compilation or simulation.
+
+50. Completion states
+
+Use exactly these concepts:
+
+READY FOR HARDWARE TESTING
+
+Software is prepared and tested as far as possible, but physical validation remains.
+
+READY
+
+Required physical acceptance tests have actually passed.
+
+NOT READY — REQUIRES FIXES
+
+A software defect, unresolved dependency, or implementation blocker remains.
+
+The presence of a file is not equivalent to functional readiness.
+
+51. ATOM-Pi GOLDEN PATH
+
+Create and maintain one acceptance scenario called:
+
+ATOM-Pi GOLDEN PATH
+
+The intended sequence is:
+
+BOOT
+  ↓
+SELF-CHECK
+  ↓
+IDLE ROBOT
+  ↓
+"HEY ATOM"
+  ↓
+LISTENING
+  ↓
+USER QUESTION
+  ↓
+SEEING if needed
+  ↓
+THINKING
+  ↓
+ARM RAISES
+  ↓
+HAND TAPS HEAD
+  ↓
+REASONING FINISHES
+  ↓
+ARM RETURNS
+  ↓
+SPEAKING
+  ↓
+CHEST CORE / FACE REACT
+  ↓
+IDLE
+
+The critical end-to-end test is:
+
+"Hey ATOM, what do you see?"
+
+This must prove:
+
+EARS
+ ↓
+EYES
+ ↓
+BRAIN
+ ↓
+MOUTH
+ ↓
+BODY
+
+on real hardware.
+
+52. Final validation matrix
+
+The final ATOM-Pi validation should cover:
+
+[ ] Pi boots
+[ ] NVMe boots
+[ ] Hailo detected and functional
+[ ] Camera works
+[ ] Microphone works
+[ ] Speaker works
+[ ] Voice interaction works
+[ ] Wake word physically validated
+[ ] Vision works
+[ ] Local brain works
+[ ] Robot GUI works
+[ ] Full-body robot visible
+[ ] Thinking gesture works
+[ ] Speaking animation works
+[ ] Internet tools work
+[ ] Internet failure is handled gracefully
+[ ] USB library works when attached
+[ ] USB library absence is non-fatal
+[ ] Kiwix retrieval works
+[ ] Desktop access works
+[ ] Barge-in works
+[ ] Sustained thermal test passes
+[ ] Golden Path passes
+
+Any hardware item that has not physically been tested remains unresolved.
+
+53. Do not overengineer
+
+The final objective is not to create an endlessly expanding robotics experiment.
+
+The objective is:
+
+Build the defined ATOM-Pi experience reliably.
+
+Prefer:
+
+SIMPLE
+REPRODUCIBLE
+TESTABLE
+LOCAL-FIRST
+HONEST
+
+over unnecessary abstraction.
+
+Once the defined requirements are satisfied, do not redesign the architecture merely because a different approach is theoretically cleaner.
+
+54. Final human → Claude → hardware workflow
+
+The complete workflow is:
+
+PHYSICAL BUILD
+      ↓
+POWER ON
+      ↓
+RASPBERRY PI OS
+      ↓
+NETWORK
+      ↓
+ATOM-Pi REPOSITORY
+      ↓
+CLAUDE CODE
+      ↓
+CLAUDE READS CLAUDE.md
+      ↓
+INSTALL / DIAGNOSE / TEST
+      ↓
+SOFTWARE READY
+      ↓
+HUMAN HARDWARE VALIDATION
+      ↓
+GOLDEN PATH
+      ↓
+ATOM-Pi READY
+
+The human should not need to become a Linux expert to operate this workflow.
+
+Claude should explain actions in plain language and clearly identify when human physical intervention is required.
+
+55. Final rule
+
+Do not confuse:
+
+CODE EXISTS
+
+with:
+
+SYSTEM WORKS
+
+Do not confuse:
+
+MODEL FILE EXISTS
+
+with:
+
+MODEL IS VALIDATED
+
+Do not confuse:
+
+SIMULATION PASSED
+
+with:
+
+HARDWARE PASSED
+
+Do not confuse:
+
+INSTALL COMPLETE
+
+with:
+
+ATOM-Pi READY
+
+The final authority is evidence from the actual system and the physical acceptance tests.
+
+ATOM-Pi should be declared READY only when the defined Golden Path and required hardware validation have actually passed.
