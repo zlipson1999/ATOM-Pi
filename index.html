@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0c1216">
+<title>ATOM-Pi parts checklist</title>
+<style>
+  :root{
+    --bg:#0c1216; --panel:#111a20; --line:#1d242c; --plate:#2b3540;
+    --steel:#5c6a78; --steelL:#7b8ca0; --core:#39c0ff; --coreHot:#a5e9ff;
+    --warn:#f0b429; --text:#cfdae4;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+       padding:28px 18px calc(150px + env(safe-area-inset-bottom));
+       -webkit-text-size-adjust:100%}
+  .wrap{max-width:720px;margin:0 auto}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:3px;
+           color:var(--steelL);text-transform:uppercase}
+  h1{font-size:34px;line-height:1.05;margin:6px 0 10px;font-weight:800;
+     letter-spacing:-.8px;color:#eef5fb}
+  .intro{font-size:13.5px;line-height:1.6;color:var(--steelL);margin:0 0 26px}
+  section{margin-bottom:26px}
+  .ghead{display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--line);
+         padding-bottom:6px;margin-bottom:10px}
+  h2{font-family:var(--mono);font-size:12px;letter-spacing:2.5px;text-transform:uppercase;
+     color:var(--core);margin:0;font-weight:600}
+  .tag{font-family:var(--mono);font-size:10px;color:var(--steel);letter-spacing:1.5px}
+  .item{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--plate);
+        border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;gap:12px;
+        align-items:flex-start;transition:background .18s,border-color .18s,opacity .18s}
+  .item.on{background:#0e161b;border-color:var(--plate);border-left-color:var(--core);opacity:.62}
+  .box{flex:0 0 auto;width:24px;height:24px;margin-top:1px;border-radius:5px;cursor:pointer;
+       background:transparent;border:2px solid var(--steel);color:var(--bg);font-size:14px;
+       font-weight:900;line-height:1;display:flex;align-items:center;justify-content:center;
+       transition:all .15s;-webkit-tap-highlight-color:transparent}
+  .item.on .box{background:var(--core);border-color:var(--core)}
+  .box:focus-visible{outline:2px solid var(--coreHot);outline-offset:2px}
+  .body{flex:1;min-width:0}
+  .row{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
+  .name{font-size:15px;font-weight:600;color:#e7f1f8}
+  .item.on .name{text-decoration:line-through}
+  .price{font-family:var(--mono);font-size:13.5px;color:var(--coreHot);white-space:nowrap}
+  .item.on .price{color:var(--steel)}
+  .meta{margin-top:6px;display:flex;flex-direction:column;gap:5px}
+  .links{font-family:var(--mono);font-size:12px}
+  a{color:var(--core);text-decoration:none;border-bottom:1px dotted var(--core)}
+  .sep{color:var(--steel)}
+  .note{font-size:12.5px;color:var(--steelL);line-height:1.5}
+  .warn{font-size:12.5px;color:var(--warn);line-height:1.5;display:flex;gap:6px}
+  ul.cuts{margin:0;padding-left:18px;font-size:13.5px;line-height:1.65;color:var(--steelL)}
+  ul.cuts strong{color:#dbe6ef}
+  .totalbar{position:fixed;left:0;right:0;bottom:0;background:#0a1015;
+            border-top:1px solid var(--plate);padding:14px 18px calc(14px + env(safe-area-inset-bottom));
+            display:flex;align-items:center;gap:16px;box-shadow:0 -10px 30px rgba(0,0,0,.55)}
+  .totalbar .inner{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:16px;width:100%}
+  .tlabel{font-family:var(--mono);font-size:10.5px;letter-spacing:2.5px;color:var(--steelL);
+          text-transform:uppercase}
+  .tbig{font-family:var(--mono);font-weight:700;letter-spacing:-1px;font-size:34px;
+        color:#f2f8fc;line-height:1.15}
+  .tbig.done{color:var(--core)}
+  .tsub{font-family:var(--mono);font-size:11.5px;color:var(--steelL)}
+  .reset{font-family:var(--mono);font-size:11px;letter-spacing:1.5px;background:transparent;
+         color:var(--steelL);border:1px solid var(--plate);border-radius:6px;padding:7px 11px;
+         cursor:pointer;flex:0 0 auto}
+  .foot{font-size:11.5px;color:var(--steel);font-family:var(--mono);margin-top:14px;line-height:1.6}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Parts acquisition</div>
+  <h1>ATOM-Pi build checklist</h1>
+  <p class="intro">Prices checked August 20, 2026. A memory/NAND shortage has pushed this
+    build up sharply: the Pi 5 16GB went from $120 to ~$205, and 2TB NVMe drives that were
+    ~$80 two years ago are now ~$245–280. Verify every price at click-time — this category
+    moves weekly.</p>
+  <div id="groups"></div>
+
+  <section>
+    <div class="ghead"><h2>Two ways to cut the cost meaningfully</h2></div>
+    <ul class="cuts">
+      <li><strong>8GB Pi 5 instead of 16GB</strong> — saves ~$60–90. Still runs Qwen3-4B;
+        16GB is comfort, not necessity.</li>
+      <li style="margin-top:4px"><strong>1TB NVMe instead of 2TB</strong> — saves ~$100.
+        Models and OS need well under 500GB, since the knowledge library lives on the
+        external USB drive anyway.</li>
+    </ul>
+  </section>
+
+  <p class="foot">Totals use the midpoint of each price range, so the estimate is a guide,
+    not a quote. Rough total: ~$800–900.</p>
+</div>
+
+<div class="totalbar">
+  <div class="inner">
+    <svg width="56" height="56" viewBox="0 0 56 56" style="flex:0 0 auto" aria-hidden="true">
+      <circle cx="28" cy="28" r="24" fill="none" stroke="#2b3540" stroke-width="5"/>
+      <circle id="ring" cx="28" cy="28" r="24" fill="none" stroke="#a5e9ff" stroke-width="5"
+              stroke-linecap="round" transform="rotate(-90 28 28)"
+              style="transition:stroke-dashoffset .5s ease"/>
+      <circle id="dot" cx="28" cy="28" r="8" fill="#39c0ff" opacity=".85"/>
+    </svg>
+    <div style="flex:1;min-width:0">
+      <div class="tlabel" id="tlabel">Still to buy</div>
+      <div class="tbig" id="tbig">—</div>
+      <div class="tsub" id="tsub"></div>
+    </div>
+    <button class="reset" id="reset">RESET</button>
+  </div>
+</div>
+
+<script>
+const GROUPS = [
+ {name:"Core computer", items:[
+  {id:"pi",name:"Raspberry Pi 5, 16GB",price:205,shown:"~$205",
+   link:"https://www.pishop.us/product/raspberry-pi-5-16gb/",linkLabel:"PiShop",
+   alt:{url:"https://www.adafruit.com/product/6125",label:"Adafruit"},
+   note:"Check rpilocator.com for stock and price across resellers first."},
+  {id:"psu",name:"Official 27W USB-C power supply",price:14,shown:"~$12–15",
+   link:"https://www.pishop.us",linkLabel:"PiShop",
+   warn:"Do NOT power the Pi from the touchscreen's USB-C output."},
+  {id:"cooler",name:"Official Active Cooler",price:8,shown:"~$5–10",
+   warn:"Required — sustained LLM load throttles a bare board."},
+  {id:"sd",name:"32GB microSD card (A2)",price:10,shown:"~$10",
+   note:"First boot only; the system migrates to the NVMe afterward."}]},
+ {name:"PCIe stack", items:[
+  {id:"hat",name:"Seeed PCIe 3.0 to Dual M.2 HAT+ (ASM2806)",price:45,shown:"$45",
+   link:"https://www.seeedstudio.com/PCIe3-0-to-dual-M-2-hat-for-Raspberry-Pi-5-p-6358.html",
+   linkLabel:"Seeed Studio",
+   warn:"Select the US warehouse at checkout. This is the PCIe 3.0 version — worth it over the $30 PCIe 2.0 one."},
+  {id:"hailo",name:"Hailo-8L M.2 module, B+M key, 13 TOPS",price:95,shown:"~$70–120",
+   link:"https://sunfounder.com/products/hailo-8l-m-2-b-m-key-13tops",linkLabel:"SunFounder",
+   warn:"Must be B+M key — the HAT supports Hailo8/8L only in that key. Do NOT buy the Raspberry Pi AI HAT+; it blocks the SSD slot."},
+  {id:"nvme",name:"2TB NVMe SSD, M.2 2280",price:262,shown:"~$245–280",
+   link:"https://cheapestssd.com/2tb-nvme-ssd/",linkLabel:"Compare prices",
+   note:"Cheapest tracked: Kingston NV3 2TB at $279.99; Ediloca 2TB Gen4 at $244.99.",
+   warn:"Avoid Gen5 — pointless here and runs hot. NVMe only; SATA M.2 drives are not compatible with this HAT."}]},
+ {name:"Senses", items:[
+  {id:"cam",name:"Raspberry Pi Camera Module 3",price:25,shown:"~$25"},
+  {id:"camcable",name:"Pi 5 22-pin camera cable",price:4,shown:"~$2–5",
+   warn:"Buy this separately — the camera ships with the wrong cable for the Pi 5."},
+  {id:"mic",name:"USB microphone",price:15,shown:"~$10–20",
+   note:"Any inexpensive USB mic works."},
+  {id:"screen",name:"SunFounder 10.1\" touchscreen, 1280×800, built-in speakers",price:150,
+   shown:"$149.99",link:"https://www.sunfounder.com/products/10inch-touchscreen-for-raspberrypi",
+   linkLabel:"SunFounder"}]},
+ {name:"Optional", optional:true, items:[
+  {id:"usbdrive",name:"USB knowledge-library drive (any size, multi-TB fine)",price:0,
+   shown:"not counted",
+   note:"Content stays on the drive; only a compact index lives on the Pi. ATOM runs fully without it."}]}
+];
+
+const ALL = GROUPS.flatMap(g => g.items.map(i => ({...i, optional: !!g.optional})));
+const NEED = ALL.filter(i => !i.optional);
+const TOTAL = NEED.reduce((s,i) => s + i.price, 0);
+const KEY = "atom-parts-checked";
+const money = n => "$" + n.toLocaleString("en-US");
+
+let got = {};
+try { got = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { got = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(got)); } catch (e) {} };
+
+const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+function render(){
+  document.getElementById("groups").innerHTML = GROUPS.map(g => `
+    <section>
+      <div class="ghead"><h2>${esc(g.name)}</h2>
+      ${g.optional ? '<span class="tag">NOT IN TOTAL</span>' : ''}</div>
+      ${g.items.map(it => {
+        const on = !!got[it.id];
+        const links = it.link ? `<div class="links">
+            <a href="${it.link}" target="_blank" rel="noreferrer">${esc(it.linkLabel)} &#8599;</a>
+            ${it.alt ? `<span class="sep">  or  </span><a href="${it.alt.url}" target="_blank" rel="noreferrer">${esc(it.alt.label)} &#8599;</a>` : ''}
+          </div>` : '';
+        const note = it.note ? `<div class="note">${esc(it.note)}</div>` : '';
+        const warn = it.warn ? `<div class="warn"><span aria-hidden="true">&#9888;</span><span>${esc(it.warn)}</span></div>` : '';
+        const meta = (links||note||warn) ? `<div class="meta">${links}${note}${warn}</div>` : '';
+        return `<div class="item ${on?'on':''}" data-id="${it.id}">
+          <button class="box" aria-pressed="${on}" aria-label="Mark ${esc(it.name)} as bought">${on?'&#10003;':''}</button>
+          <div class="body">
+            <div class="row"><span class="name">${esc(it.name)}</span>
+            <span class="price">${esc(it.shown)}</span></div>
+            ${meta}
+          </div>
+        </div>`;
+      }).join("")}
+    </section>`).join("");
+  updateTotal();
+}
+
+function updateTotal(){
+  const spent = NEED.filter(i => got[i.id]).reduce((s,i) => s + i.price, 0);
+  const left = TOTAL - spent;
+  const have = NEED.filter(i => got[i.id]).length;
+  const done = have === NEED.length;
+  const pct = TOTAL ? left / TOTAL : 0;
+  const C = 2 * Math.PI * 24;
+  const ring = document.getElementById("ring");
+  ring.setAttribute("stroke-dasharray", C);
+  ring.setAttribute("stroke-dashoffset", C * (1 - pct));
+  ring.setAttribute("stroke", done ? "#39c0ff" : "#a5e9ff");
+  document.getElementById("dot").setAttribute("opacity", done ? 1 : (0.35 + pct * 0.5));
+  document.getElementById("tlabel").textContent = done ? "Every part acquired" : "Still to buy";
+  const big = document.getElementById("tbig");
+  big.textContent = money(left);
+  big.className = "tbig" + (done ? " done" : "");
+  document.getElementById("tsub").textContent =
+    have + " of " + NEED.length + " parts · " + money(spent) + " spent of " + money(TOTAL) + " est.";
+}
+
+document.getElementById("groups").addEventListener("click", e => {
+  const box = e.target.closest(".box");
+  if (!box) return;
+  const id = box.closest(".item").dataset.id;
+  got[id] = !got[id];
+  save();
+  render();
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  got = {}; save(); render();
+});
+
+render();
+</script>
+</body>
+</html>
