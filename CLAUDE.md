@@ -14,7 +14,7 @@ projects — explain what you're doing in plain language as you go.
    invent an alternative install path.
 
 2. **Do not unpin the upstream commits** (`POCKET_SHA`, `BMA_SHA` in
-   `install.sh`). Every patch in `patches/apply_patches.py` was verified
+   `install.sh`). Every patch in `apply_patches.py` (repo root) was verified
    against exactly those commits. If a patch prints a manual-fallback
    warning, apply that specific fallback — do not re-clone upstream
    main to "fix" it.
@@ -156,9 +156,14 @@ been performed.
 ## Layout
 
 - `install.sh` — staged installer (the only supported install path)
-- `patches/apply_patches.py` — verified edits applied to pocket-ai
-- `merged/` — ATOM-owned modules (wake listener, vision tool,
-  knowledge library, robot components, doctor, personality)
-- `wakeword/` — the Hey ATOM training pipeline (recorder, validator)
+- `apply_patches.py` — verified edits applied to pocket-ai (repo root)
+- ATOM-owned modules at the repo root: wakeword_listener.py,
+  vision_describe.py, atom_knowledge.py, atom_doctor.py,
+  AtomRobot.jsx, AtomRobotAdapter.jsx, personality.txt,
+  record_dataset.py, validate_model.py
+  (install.sh also accepts the canonical merged/ + patches/ +
+  wakeword/ layout — its resolver checks both)
+- `wakeword/` — Hey ATOM training docs (README.md pipeline guide,
+  DATASET.md data spec); the recorder/validator tools are at root
 - `VALIDATION.md` — the hardware acceptance worksheet
 - App lives at `~/pocket-ai` after install; config in its `.env`
