@@ -37,7 +37,7 @@ Google Colab provides one free.
 4. Download the exported model and rename it `hey_atom.onnx` if
    needed.
 5. Optional but recommended: upload your real recordings from
-   `record_dataset.py` (below) where the notebook accepts custom
+   `record_dataset.py` (at the repo root) where the notebook accepts custom
    positive/negative data — real-room samples measurably improve
    robustness for YOUR mic and YOUR voice.
 
@@ -51,7 +51,7 @@ machine.
 
 ## Then: validate BEFORE installing
 
-On the machine holding the model + your recorded dataset:
+On the machine holding the model + your recorded dataset, from the repository root:
 
     pip install openwakeword onnxruntime numpy
     python validate_model.py hey_atom.onnx --data data/
