@@ -149,7 +149,13 @@ const GROUPS = [
    note:"Any inexpensive USB mic works."},
   {id:"screen",name:"SunFounder 10.1\" touchscreen, 1280×800, built-in speakers",price:150,
    shown:"$149.99",link:"https://www.sunfounder.com/products/10inch-touchscreen-for-raspberrypi",
-   linkLabel:"SunFounder"}]},
+   linkLabel:"SunFounder",
+   note:"Powers itself from its own 12V DC wall adapter, included in the box along with the HDMI and USB cables. Two wall plugs total: screen on 12V, Pi on the official 27W supply."}]},
+ {name:"Setup only", optional:true, items:[
+  {id:"kbm",name:"USB keyboard + mouse",price:0,shown:"anything you have",
+   note:"Required by BUILD.md for first boot. Only needed until the desktop and SSH are up."},
+  {id:"net",name:"Wi-Fi or Ethernet during setup",price:0,shown:"no purchase",
+   note:"The install downloads several GB (OS updates, Qwen brain, voice, Moondream). Ethernet is steadier if the Pi is near your router."}]},
  {name:"Optional", optional:true, items:[
   {id:"usbdrive",name:"USB knowledge-library drive (any size, multi-TB fine)",price:0,
    shown:"not counted",
