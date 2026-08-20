@@ -6,7 +6,7 @@
 #  pocket-ai chassis + wake word, face, Moondream vision, British voice.
 #
 #  Usage (either works):
-#    curl -fsSL https://raw.githubusercontent.com/zlipson1999/atom-pi/main/install.sh | bash
+#    curl -fsSL https://raw.githubusercontent.com/zlipson1999/ATOM-Pi/main/install.sh | bash
 #  or, from inside a cloned/downloaded copy of this repo:
 #    bash install.sh
 #
@@ -17,7 +17,7 @@
 # =============================================================================
 set -u
 
-REPO_URL="${ATOM_REPO:-https://github.com/zlipson1999/atom-pi.git}"
+REPO_URL="${ATOM_REPO:-https://github.com/zlipson1999/ATOM-Pi.git}"
 # Known-good upstream commits (the exact code all patches were verified
 # against). Override with env vars to track newer upstream.
 POCKET_SHA="${POCKET_SHA:-137fc627bd8c3e703db612332874023da7e3bb24}"
@@ -151,9 +151,9 @@ if [ "$(get_stage)" -eq 3 ]; then
   ok "System packages ready (node $(node -v))"
 
   bold "[Stage 3] Getting this repo's merge files"
-  if [ -d "$(dirname "$0")/merged" ] 2>/dev/null; then
+  if [ -f "$(dirname "$0")/apply_patches.py" ] || [ -d "$(dirname "$0")/merged" ]; then
     REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
-  elif [ ! -d "$REPO_DIR/merged" ]; then
+  elif [ ! -f "$REPO_DIR/apply_patches.py" ] && [ ! -d "$REPO_DIR/merged" ] && [ ! -f "$REPO_DIR/patches/apply_patches.py" ]; then
     git clone "$REPO_URL" "$REPO_DIR" || die "could not clone $REPO_URL — check the URL at the top of install.sh"
   fi
   ok "Merge files at $REPO_DIR"
@@ -245,15 +245,19 @@ PY
   fi
 
   bold "[Stage 3] Applying the ATOM merge (verified patches)"
-  cp "$REPO_DIR/merged/wakeword_listener.py" "$APP_DIR/"
-  cp "$REPO_DIR/merged/vision_describe.py"  "$APP_DIR/"
-  cp "$REPO_DIR/merged/atom_doctor.py"       "$APP_DIR/"
-  cp "$REPO_DIR/merged/atom_knowledge.py"    "$APP_DIR/"
-  cp "$REPO_DIR/wakeword/validate_model.py"  "$APP_DIR/wakeword_validate.py" 2>/dev/null || true
-  cp "$REPO_DIR/merged/personality.txt"     "$APP_DIR/"
-  cp "$REPO_DIR/merged/AtomRobot.jsx"        "$APP_DIR/chat-gui/src/renderer/src/components/"
-  cp "$REPO_DIR/merged/AtomRobotAdapter.jsx" "$APP_DIR/chat-gui/src/renderer/src/components/"
-  python "$REPO_DIR/patches/apply_patches.py" "$APP_DIR" || warn "some patches printed manual follow-ups above — see README"
+  # Layout-tolerant resolver: canonical merged/ layout, or the files at
+  # the repository root (as the current GitHub upload carries them).
+  src() { if [ -f "$REPO_DIR/merged/$1" ]; then echo "$REPO_DIR/merged/$1"; else echo "$REPO_DIR/$1"; fi; }
+  for f in wakeword_listener.py vision_describe.py atom_doctor.py atom_knowledge.py personality.txt; do
+    cp "$(src "$f")" "$APP_DIR/" || die "ATOM module missing from the repo: $f"
+  done
+  VAL="$REPO_DIR/wakeword/validate_model.py"; [ -f "$VAL" ] || VAL="$REPO_DIR/validate_model.py"
+  [ -f "$VAL" ] && cp "$VAL" "$APP_DIR/wakeword_validate.py" || warn "validate_model.py not found — live wake testing tool won't be on the Pi"
+  for f in AtomRobot.jsx AtomRobotAdapter.jsx; do
+    cp "$(src "$f")" "$APP_DIR/chat-gui/src/renderer/src/components/" || die "robot component missing from the repo: $f"
+  done
+  PATCHER="$REPO_DIR/patches/apply_patches.py"; [ -f "$PATCHER" ] || PATCHER="$REPO_DIR/apply_patches.py"
+  python "$PATCHER" "$APP_DIR" || warn "some patches printed manual follow-ups above — see README"
 
   bold "[Stage 3] Wake phrase: Hey ATOM"
   if [ -f "$REPO_DIR/hey_atom.onnx" ]; then
@@ -273,7 +277,7 @@ PY
     echo
     echo "   To create it (training time depends on results):"
     echo "     1. wakeword/README.md in the atom-pi repo — full pipeline"
-    echo "     2. Record your dataset:  python wakeword/record_dataset.py"
+    echo "     2. Record your dataset:  python record_dataset.py"
     echo "     3. Train via openWakeWord's Colab notebook (phrase: hey atom)"
     echo "     4. Validate:  python wakeword/validate_model.py hey_atom.onnx"
     echo "     5. Drop hey_atom.onnx into the repo and re-run this installer"
