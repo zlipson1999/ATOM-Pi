@@ -28,8 +28,9 @@ named **`hey_atom.onnx`**, and you create it once, free, in about 30
 minutes (be-more-agent ships its own custom `wakeword.onnx`, which is
 proof this exact path works):
 
-The complete pipeline lives in **`wakeword/`**: a guided dataset
-recorder, the training routes (openWakeWord's Colab notebook — free
+The complete pipeline is documented in **`wakeword/README.md`**, with
+the tools at the repo root — a guided dataset recorder
+(`record_dataset.py`), the training routes (openWakeWord's Colab notebook — free
 GPU, no install — or a local NVIDIA machine), and a validator that
 replays your recordings through the model exactly as the listener
 will and suggests your threshold. Training and tuning take as long
@@ -70,7 +71,7 @@ can't see rather than pretending).
 2. Boot, open a terminal:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zlipson1999/atom-pi/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/zlipson1999/ATOM-Pi/main/install.sh | bash
 ```
 
 3. **When it reboots, run the same command again** — progress is kept
