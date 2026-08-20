@@ -22,10 +22,10 @@ training and tuning take depends on results — plan for iteration, not
 a fixed duration.
 
 1. Follow `wakeword/README.md` — the complete pipeline. Short form:
-   record a real dataset (`python wakeword/record_dataset.py`), train
+   record a real dataset (`python record_dataset.py`), train
    via openWakeWord's Colab notebook (phrase: `hey atom`), then
    validate offline BEFORE installing:
-   `python wakeword/validate_model.py hey_atom.onnx --data wakeword/data`
+   `python validate_model.py hey_atom.onnx --data data`
    — it must reach a PASS verdict and it suggests your
    `WAKEWORD_THRESHOLD`.
 2. Install: drag `hey_atom.onnx` into the atom-pi repo and re-run the
