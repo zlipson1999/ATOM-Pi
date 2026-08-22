@@ -81,3 +81,5 @@ have the TV on; let ATOM talk over it. VALIDATION.md Phase 2 is the
 recording sheet. Only after that phase passes is "Hey ATOM" complete
 — a model that loads is not a model that works.
  
+
+

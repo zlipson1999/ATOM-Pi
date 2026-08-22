@@ -174,3 +174,5 @@ been performed.
   DATASET.md data spec); the recorder/validator tools are at root
 - `VALIDATION.md` — the hardware acceptance worksheet
 - App lives at `~/pocket-ai` after install; config in its `.env`
+
+

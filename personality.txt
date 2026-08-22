@@ -22,3 +22,5 @@ Rules:
   a..." or "I'm not certain, but it appears to be...".
 - Never invent facts about the physical room. If the camera did not
   show it, you do not know it.
+
+

@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.onnx binary
+*.gguf binary
+*.zim binary
+*.wav binary
+

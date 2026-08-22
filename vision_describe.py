@@ -26,6 +26,7 @@ import requests
 BACKEND = os.environ.get("ATOM_BACKEND", "http://localhost:8000")
 OLLAMA = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
 DEFAULT_QUESTION = "Describe what you see in one or two sentences."
+MAX_QUESTION_CHARS = 1000
 
 
 def _capture_b64() -> str:
@@ -44,32 +45,36 @@ def _capture_b64() -> str:
 
 
 def describe_scene(question: str = "") -> str:
-    question = (question or "").strip() or DEFAULT_QUESTION
+    question = ((question or "").strip() or DEFAULT_QUESTION)[:MAX_QUESTION_CHARS]
     try:
         image_b64 = _capture_b64()
-    except Exception as exc:
-        return f"I couldn't get a picture from my camera: {exc}"
+    except Exception:
+        return "I couldn't get a picture from my camera."
     try:
-        resp = requests.post(OLLAMA, json={
-            "model": "moondream",
-            "prompt": question,
-            "images": [image_b64],
-            "stream": False,
-        }, timeout=120)  # first call loads the model
+        resp = requests.post(
+            OLLAMA,
+            json={
+                "model": "moondream",
+                "prompt": question,
+                "images": [image_b64],
+                "stream": False,
+            },
+            timeout=120,
+        )  # first call loads the model
         resp.raise_for_status()
         answer = resp.json().get("response", "").strip()
         return answer or "I looked, but I couldn't put it into words."
     except requests.ConnectionError:
-        return ("My vision model isn't running. "
-                "Start it with: sudo systemctl start ollama")
+        return "My vision model isn't running. Start it with: sudo systemctl start ollama"
     except requests.Timeout:
         return "My vision model took too long — try asking again."
-    except Exception as exc:
+    except Exception:
         # Anything else — an HTTP error, malformed JSON — must still come back
         # as a sentence. This runs inside a tool runner; an exception escaping
         # here surfaces as a broken tool call rather than an answer.
-        return f"My vision model gave me something I couldn't read: {exc}"
+        return "My vision model returned an unreadable response."
 
 
 if __name__ == "__main__":
     print(describe_scene(" ".join(sys.argv[1:])))
+

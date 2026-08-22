@@ -63,14 +63,19 @@ OWW_RATE, CHUNK = 16000, 1280  # openWakeWord: 16 kHz, 80 ms frames
 
 def pick_input_rate(pa, device_index):
     """Hardware-aware rate pick (many USB mics refuse 16 kHz)."""
-    info = (pa.get_device_info_by_index(device_index)
-            if device_index is not None
-            else pa.get_default_input_device_info())
+    info = (
+        pa.get_device_info_by_index(device_index)
+        if device_index is not None
+        else pa.get_default_input_device_info()
+    )
     for rate in (16000, 48000, 44100, 32000, 22050):
         try:
-            if pa.is_format_supported(rate, input_device=int(info["index"]),
-                                      input_channels=1,
-                                      input_format=pyaudio.paInt16):
+            if pa.is_format_supported(
+                rate,
+                input_device=int(info["index"]),
+                input_channels=1,
+                input_format=pyaudio.paInt16,
+            ):
                 return rate
         except ValueError:
             continue
@@ -97,6 +102,7 @@ def start_camera():
         return
     try:
         import requests
+
         requests.post(f"{BACKEND}/camera/start", timeout=3)
         print("  -> camera on for this voice session")
     except Exception:
@@ -122,20 +128,20 @@ def run_voice_session(open_stream, model):
         return
     try:
         while True:  # loops on each barge-in
-            ws.send(json.dumps({"type": "toggle_voice"}))   # start capture
+            ws.send(json.dumps({"type": "toggle_voice"}))  # start capture
             print(f"  -> listening for {LISTEN_SECONDS:.0f}s ...")
             time.sleep(LISTEN_SECONDS)
-            ws.send(json.dumps({"type": "toggle_voice"}))   # stop + respond
+            ws.send(json.dumps({"type": "toggle_voice"}))  # stop + respond
             print("  -> handed to ATOM (thinking/speaking)")
             stream = open_stream() if BARGE_IN else None
             interrupted = False
             ws.settimeout(0.05 if BARGE_IN else 120)
             try:
-                while True:                                 # drain until idle
+                while True:  # drain until idle
                     try:
                         msg = json.loads(ws.recv())
                     except websocket.WebSocketTimeoutException:
-                        msg = None          # no traffic yet — keep draining
+                        msg = None  # no traffic yet — keep draining
                     except Exception as exc:
                         # The socket is broken (closed, reset, garbage frame).
                         # Bail out of the whole session: the old code set
@@ -146,20 +152,16 @@ def run_voice_session(open_stream, model):
                     if msg:
                         if msg.get("type") == "voice_transcription":
                             print(f"     heard: {msg.get('text', '')!r}")
-                        if (msg.get("type") == "voice_status"
-                                and msg.get("status") == "idle"):
+                        if msg.get("type") == "voice_status" and msg.get("status") == "idle":
                             break
                     if stream is not None:
                         # One hardware frame == exactly 80 ms == 1280 samples
                         # after resampling, at every rate pick_input_rate can
                         # return. Reading a fixed CHUNK*3 here produced ragged
                         # frames (e.g. 1393 samples at 44.1 kHz).
-                        raw = stream.read(stream.atom_chunk,
-                                          exception_on_overflow=False)
-                        frame = resample_16k(np.frombuffer(raw, dtype=np.int16),
-                                             stream.atom_rate)
-                        if max(model.predict(frame).values(),
-                               default=0.0) >= BARGE_THRESHOLD:
+                        raw = stream.read(stream.atom_chunk, exception_on_overflow=False)
+                        frame = resample_16k(np.frombuffer(raw, dtype=np.int16), stream.atom_rate)
+                        if max(model.predict(frame).values(), default=0.0) >= BARGE_THRESHOLD:
                             print("  !! barge-in: wake word during speech — interrupting")
                             ws.send(json.dumps({"type": "abort"}))
                             model.reset()
@@ -206,8 +208,7 @@ def main():
         print("=" * 62)
         raise SystemExit(0)
     try:
-        model = Model(wakeword_models=[str(model_path)],
-                      inference_framework="onnx")
+        model = Model(wakeword_models=[str(model_path)], inference_framework="onnx")
     except TypeError:
         # older openwakeword API (<=0.4.x) — installer pins 0.6.0, but
         # survive a mismatched environment rather than crash the ears
@@ -221,9 +222,14 @@ def main():
     hw_chunk = int(CHUNK * hw_rate / OWW_RATE)
 
     def open_stream():
-        s = pa.open(format=pyaudio.paInt16, channels=1, rate=hw_rate,
-                    input=True, frames_per_buffer=hw_chunk,
-                    input_device_index=INPUT_DEVICE_INDEX)
+        s = pa.open(
+            format=pyaudio.paInt16,
+            channels=1,
+            rate=hw_rate,
+            input=True,
+            frames_per_buffer=hw_chunk,
+            input_device_index=INPUT_DEVICE_INDEX,
+        )
         # Tags for the barge-in resampler. Namespaced: PyAudio's Stream uses
         # `_rate` internally, so writing that name shadows library state.
         s.atom_rate = hw_rate
@@ -231,9 +237,11 @@ def main():
         return s
 
     stream = open_stream()
-    print(f"Mic at {hw_rate} Hz "
-          f"({'native' if hw_rate == OWW_RATE else 'resampling'}). "
-          "Ctrl+C to stop.")
+    print(
+        f"Mic at {hw_rate} Hz "
+        f"({'native' if hw_rate == OWW_RATE else 'resampling'}). "
+        "Ctrl+C to stop."
+    )
     try:
         while True:
             raw = stream.read(hw_chunk, exception_on_overflow=False)
@@ -250,7 +258,7 @@ def main():
                 run_voice_session(open_stream, model)
                 model.reset()
                 time.sleep(COOLDOWN)
-                stream = open_stream()   # re-arm
+                stream = open_stream()  # re-arm
                 print("Re-armed. Listening for wake word...")
     except KeyboardInterrupt:
         print("\nStopping.")
@@ -265,3 +273,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

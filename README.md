@@ -330,7 +330,9 @@ Face). For a harder setup: read `install.sh` first (it's commented),
 or clone the repo and run `bash install.sh` locally. Upstreams are
 pinned to verified commits (`POCKET_SHA`, `BMA_SHA`); override those
 env vars to track `main` if you prefer fresh over reproducible. No
-secrets are stored anywhere; nothing leaves the device at runtime.
+secrets must stay in the untracked `.env`. Local voice, vision, and library
+paths stay on-device; explicitly invoked web tools send queries to their
+configured upstream services as described in the privacy section above.
 
 **Network exposure.** Two services listen on the Pi, and both are
 bound to localhost on purpose:
@@ -349,9 +351,35 @@ bound to localhost on purpose:
 If you put ATOM on a network you don't control, check both with
 `ss -tlnp` before trusting them.
 
+## Development, tests, and safety boundaries
+
+ATOM-Pi remains an overlay for the pinned `pocket-ai` application. The small
+provider-neutral modules added here do not replace that architecture:
+
+- `atom_safety.py` classifies read-only, confirmation-required, and prohibited actions.
+- `atom_brief.py` validates and deterministically renders sourced, freshness-labeled briefs.
+- `atom_jobs.py` prevents a scheduled job key from being claimed twice.
+- `atom_knowledge.py` maintains a versioned local index and now handles added, changed, and deleted files.
+
+Development checks (Python 3.10+):
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install -e '.[dev]'
+python -m compileall -q .
+ruff format --check .
+ruff check .
+python -m unittest discover -v
+pip-audit
+```
+
+See `SECURITY.md` for the threat/privacy model and `AGENTS.md` for repository rules.
+
 ## Credits
 
 The heavy lifting is nazirlouis/pocket-ai and the ideas proven in
 brenpoly/be-more-agent (MIT). Voices: rhasspy/piper (MIT). Qwen3:
 Apache 2.0. Moondream: Apache 2.0. This repo is the integration
 layer, the wake-word ears, the vision tool, and the robot.
+

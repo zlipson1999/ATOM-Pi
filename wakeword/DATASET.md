@@ -18,3 +18,5 @@ SIMILAR PHRASES: "hey adam", "hey autumn", "hey tom", "atom bomb",
 Split: validate_model.py uses everything as a held-out test set (the
 notebook trains on synthetic data), which is exactly what you want —
 your recordings prove generalization to your real room and mic.
+
+

@@ -481,3 +481,5 @@ bold "Installer already completed (stage $(get_stage)) — syncing the ATOM laye
 echo "  (Nothing is re-downloaded. For a genuine full re-run: rm $STAGE_FILE)"
 echo
 run_sync
+
+
