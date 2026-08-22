@@ -17,4 +17,3 @@ For rollback, restore the previously recorded upstream commit pins and ATOM vers
 ## Hardware-only checks
 
 Run on the intended Raspberry Pi: `hailortcli fw-control identify`, `python atom_doctor.py --sound`, `python atom_doctor.py --mic`, `python validate_model.py`, `python vision_describe.py`, and the complete interaction contract in `VALIDATION.md`. These checks are intentionally excluded from standard CI.
-

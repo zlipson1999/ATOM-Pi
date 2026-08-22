@@ -175,4 +175,3 @@ been performed.
 - `VALIDATION.md` — the hardware acceptance worksheet
 - App lives at `~/pocket-ai` after install; config in its `.env`
 
-

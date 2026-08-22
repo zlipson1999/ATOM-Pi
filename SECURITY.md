@@ -9,4 +9,3 @@ Read-only operations are allowed. Sending, changing, deleting, publishing, or wr
 Secrets belong in `.env` with owner-only permissions. Do not log prompts containing personal data, tokens, message bodies, calendar details, captured images, or retrieved document text. Backups may contain secrets and personal data; store them encrypted and delete them according to the owner's retention policy.
 
 Report vulnerabilities privately to the repository owner. Do not include real secrets or personal content in reports or fixtures.
-

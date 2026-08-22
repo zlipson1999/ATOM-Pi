@@ -30,4 +30,3 @@ Supported target: Raspberry Pi 5 (16 GB preferred), NVMe system disk, active coo
 - Do not commit, push, deploy, purchase, message, modify external services, or run live write tests without explicit permission.
 
 Definition of done: behavior is tested, offline degradation is explicit, errors do not leak sensitive data, docs match commands actually run, and Pi-only validation gaps are recorded rather than reported as passing.
-

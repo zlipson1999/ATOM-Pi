@@ -52,4 +52,3 @@ def render_brief(items: list[BriefItem], now: datetime, timezone_name: str) -> s
             "- [INFORMATIONAL] No source data was available; no current claims can be made."
         )
     return "\n".join(lines)
-

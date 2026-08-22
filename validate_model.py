@@ -162,4 +162,3 @@ if __name__ == "__main__":
             "(wakeword/README.md). This tool does not fabricate models."
         )
     live_mode(a.model) if a.live else dataset_mode(a.model, a.data)
-

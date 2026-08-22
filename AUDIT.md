@@ -37,4 +37,3 @@ Passed locally: editable development install; Python compilation; Ruff format ch
 Not runnable here: Raspberry Pi installer, apt/systemd, Electron build inherited from `pocket-ai`, Hailo, NVMe, thermal, camera, microphone/speaker, wake model, Ollama/Moondream, Kiwix, and physical interaction tests. Exact commands are in `AGENTS.md`, `OPERATIONS.md`, and `VALIDATION.md`.
 
 Quality score: 4/10 before (well-documented prototype, weak automated assurance) and 7/10 after (clearer boundaries, repeatable checks, failure-mode evaluations, and safer indexing). It cannot credibly reach 9–10 until the changes are integrated with the upstream runtime and the complete Pi validation contract passes.
-

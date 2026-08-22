@@ -370,4 +370,3 @@ if __name__ == "__main__":
         print(index_documents(r) if r else "No library drive found.")
     else:
         print(search_library(" ".join(a)))
-

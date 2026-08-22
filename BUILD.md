@@ -1374,4 +1374,3 @@ ATOM-Pi READY
 The final authority is evidence from the actual system and the physical acceptance tests.
 ATOM-Pi should be declared READY only when the defined Golden Path and required hardware validation have actually passed.
 
-

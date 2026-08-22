@@ -382,4 +382,3 @@ The heavy lifting is nazirlouis/pocket-ai and the ideas proven in
 brenpoly/be-more-agent (MIT). Voices: rhasspy/piper (MIT). Qwen3:
 Apache 2.0. Moondream: Apache 2.0. This repo is the integration
 layer, the wake-word ears, the vision tool, and the robot.
-

@@ -77,4 +77,3 @@ def describe_scene(question: str = "") -> str:
 
 if __name__ == "__main__":
     print(describe_scene(" ".join(sys.argv[1:])))
-

@@ -356,4 +356,3 @@ if WARN:
     )
 else:
     print("All patches applied cleanly against verified anchors.")
-

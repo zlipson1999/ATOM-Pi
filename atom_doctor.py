@@ -231,4 +231,3 @@ if __name__ == "__main__":
     {"--sound": sound, "--mic": mic, "--backup": backup, "--logs": logs, "--version": version}.get(
         a[0], checks
     )()
-

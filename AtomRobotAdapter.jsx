@@ -17,4 +17,3 @@ export default function AtomRobotAdapter({ expression="idle", size=340 }) {
   return <AtomRobot state={state} size={size} />;
 }
 
-

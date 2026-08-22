@@ -56,4 +56,3 @@ def untrusted_context(source: str, content: str, max_chars: int = 12000) -> str:
     """Delimit retrieved data so it cannot be confused with instructions."""
     safe_source = source.replace("\n", " ")[:240]
     return f"<untrusted source={safe_source!r}>\n{content[:max_chars]}\n</untrusted>"
-

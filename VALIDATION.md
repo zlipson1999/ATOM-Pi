@@ -265,4 +265,3 @@ begin. Any blocking failure → **NOT READY — REQUIRES FIXES**: record
 exactly what failed, run `python atom_doctor.py --logs`, and bring
 both back for the fix. Partial completion stays **READY FOR HARDWARE
 TESTING** with this worksheet showing precisely what remains.
-

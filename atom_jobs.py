@@ -30,4 +30,3 @@ class JobLedger:
             return True
         finally:
             con.close()
-
