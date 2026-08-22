@@ -21,6 +21,8 @@ Patches:
  11. App.jsx     : register the /library route
  12. Home.jsx    : ATOM hub — title, VOICE/CHAT/VISION/LIBRARY, DESKTOP
  13. main+preload: DESKTOP tile runs atom-stop.sh over IPC
+ 14. index.css   : load the ATOM visual system (tokens + compat layer)
+ 15. App.jsx     : mount the GL backdrop + /dev/shader-lab route
 (The audio output device needs no patch: it's the TTS_ALSA_DEVICE
 environment variable, which the installer writes into .env.)
 """
@@ -365,7 +367,7 @@ if home.exists():
                 whileTap={{ scale: 0.98 }}
                 onClick={() => window.electron?.desktopMode?.()}
                 className="pixel-btn mt-3 w-full max-w-[520px] min-h-[56px] text-[12px] z-10 flex-none"
-                style={{ borderColor: '#565f89', color: '#565f89', boxShadow: '4px 4px 0 0 #565f89' }}
+                style={{ borderColor: 'var(--at-edge-base)', color: 'var(--at-text-mid)' }}
             >
                 <Monitor size={22} />
                 <span>DESKTOP</span>
@@ -442,6 +444,61 @@ if main_js.exists():
         warn("main/index.js anchors not found — the DESKTOP tile will do nothing.")
 else:
     warn("main/index.js missing — DESKTOP tile cannot be wired.")
+
+# ---- 14: index.css — load the visual system --------------------------------
+# atom-visual.css redefines the seven --pixel-* variables and the four
+# .pixel-* utility classes in terms of the new ramps, which is what re-skins
+# every existing surface without editing a single component. It must load
+# AFTER tailwind so its overrides win the cascade.
+css = APP / "chat-gui" / "src" / "renderer" / "src" / "index.css"
+if css.exists():
+    t = css.read_text()
+    FONTS_OLD = ("@import url('https://fonts.googleapis.com/css2?"
+                 "family=Press+Start+2P&family=VT323&display=swap');")
+    FONTS_NEW = ("@import url('https://fonts.googleapis.com/css2?"
+                 "family=Chakra+Petch:wght@400;500;600;700&"
+                 "family=IBM+Plex+Mono:wght@400;500;600&display=swap');")
+    if "atom-visual.css" in t:
+        ok("visual system already loaded")
+    elif '@import "tailwindcss";' in t:
+        # The font @import must stay the FIRST rule in the file: CSS drops an
+        # @import that follows any other rule, so it cannot live in
+        # atom-visual.css (which is itself imported after tailwind).
+        if FONTS_OLD in t:
+            t = t.replace(FONTS_OLD, FONTS_NEW)
+        else:
+            warn("index.css font @import not found — Chakra Petch / IBM Plex "
+                 "Mono will fall back to system faces.")
+        css.write_text(t.replace('@import "tailwindcss";',
+                                 '@import "tailwindcss";\n@import "./atom-visual.css";'))
+        ok("index.css loads the ATOM visual system (fonts swapped)")
+    else:
+        warn("index.css tailwind import not found — add "
+             "'@import \"./atom-visual.css\";' after the tailwind import by hand.")
+else:
+    warn("index.css missing — the visual system will not load.")
+
+# ---- 15: App.jsx — GL backdrop + shader lab --------------------------------
+if app_jsx.exists():
+    t = app_jsx.read_text()
+    IMP = "import AtomLibrary from './components/AtomLibrary';"
+    MOUNT = "            <StatusBar />"
+    RTE = '        <Route path="/library" element={<AtomLibrary />} />'
+    if "AtomBackdropLive" in t:
+        ok("GL backdrop already mounted")
+    elif IMP in t and MOUNT in t and RTE in t:
+        t = t.replace(IMP, IMP
+            + "\nimport { AtomBackdropLive } from './components/AtomBackdrop';"
+            + "\nimport AtomShaderLab from './components/AtomShaderLab';")
+        # Inside WebSocketProvider so the field reacts to real voice_status,
+        # and before StatusBar so it sits behind every surface.
+        t = t.replace(MOUNT, "            <AtomBackdropLive />\n" + MOUNT)
+        t = t.replace(RTE, RTE + '\n        <Route path="/dev/shader-lab" element={<AtomShaderLab />} />')
+        app_jsx.write_text(t)
+        ok("GL backdrop mounted + /dev/shader-lab registered")
+    else:
+        warn("App.jsx backdrop anchors not found — the token layer still "
+             "applies, but the GL field and shader lab will be absent.")
 
 print()
 if WARN:

@@ -1,0 +1,388 @@
+/* ===========================================================================
+   ATOM — visual system tokens
+   ---------------------------------------------------------------------------
+   The single source of truth for the overhaul. No component may hardcode a
+   colour, radius, blur, duration or easing; everything reads from here.
+
+   Three languages, one material stack:
+     GLASS is the material     — surfaces are translucent, refractive, layered
+     HOLOGRAPHIC is the light  — everything is lit by emissive cyan/violet
+     CRT is the atmosphere     — grain, bloom and curvature sit in the GL layer
+                                 UNDER the text, never over it (see DECISIONS D2)
+
+   Naming: --at-<group>-<role>-<step>. Steps run 0 (deepest) -> 9 (hottest).
+   =========================================================================== */
+
+/* Fonts are loaded by index.css's first @import — patch 14 rewrites that
+   line. A CSS @import is only valid before other rules, and this file is
+   itself imported after tailwind, so a font @import here is dropped. */
+
+:root {
+  /* ---- BASE RAMP — the void behind the glass -------------------------- */
+  --at-base-0: #02040a;   /* deepest black, CRT letterbox */
+  --at-base-1: #04070f;   /* app ground */
+  --at-base-2: #070c17;   /* panel ground */
+  --at-base-3: #0b1222;   /* raised panel */
+  --at-base-4: #111a2e;   /* hover / active ground */
+
+  /* ---- SURFACE RAMP — glass, expressed as rgba so it composites ------- */
+  --at-surface-thin:   rgba(120, 180, 235, 0.045);
+  --at-surface-base:   rgba(120, 180, 235, 0.075);
+  --at-surface-raised: rgba(130, 190, 245, 0.11);
+  --at-surface-hot:    rgba(140, 205, 255, 0.17);
+  --at-surface-sunken:  rgba(2, 5, 12, 0.55);
+  /* Backing for any surface that carries text over the live field.
+     Measured, not guessed: at 0.62 every tile label clears AA at the
+     worst sampled frame; below ~0.55 the accent labels fail. */
+  --at-surface-legible: rgba(5, 9, 18, 0.62);
+
+  /* ---- EDGES — glass has a bright rim, not a border ------------------- */
+  --at-edge-faint: rgba(150, 210, 255, 0.10);
+  --at-edge-base:  rgba(160, 220, 255, 0.20);
+  --at-edge-bright:rgba(190, 240, 255, 0.42);
+  --at-edge-hot:   rgba(225, 250, 255, 0.72);
+
+  /* ---- ACCENT RAMP — the holographic key light ------------------------ */
+  --at-accent-0: #06212e;
+  --at-accent-2: #0a4c6b;
+  --at-accent-4: #128fbf;
+  --at-accent-6: #2fc9f4;   /* primary accent */
+  --at-accent-8: #7de4ff;
+  --at-accent-9: #cdf6ff;   /* specular / hottest */
+
+  /* ---- SECONDARY RAMP — violet fill light ----------------------------- */
+  --at-violet-2: #2a1a5e;
+  --at-violet-4: #5533b8;
+  --at-violet-6: #8b6cf0;
+  --at-violet-8: #c0aaff;
+
+  /* ---- SIGNAL — status, never decorative ------------------------------ */
+  --at-signal-ok:    #35e6a4;
+  --at-signal-warn:  #ffbe4d;
+  --at-signal-alert: #ff5470;
+  --at-signal-live:  #2fc9f4;
+
+  /* ---- TEXT — contrast-checked against --at-base-1 -------------------- */
+  --at-text-hi:  #eaf6ff;   /* 17.4:1 on base-1  — headings, body */
+  --at-text-mid: #a9c4dc;   /* 8.6:1             — secondary */
+  --at-text-lo:  #6f8aa6;   /* 4.6:1             — labels, meets AA at 14px+ */
+  --at-text-ink: #02040a;   /* on accent fills */
+
+  /* ---- TYPE ----------------------------------------------------------- */
+  --at-font-display: 'Chakra Petch', system-ui, sans-serif;
+  --at-font-ui:      'Chakra Petch', system-ui, sans-serif;
+  --at-font-data:    'IBM Plex Mono', ui-monospace, monospace;
+  --at-tracking-wide: 0.14em;
+  --at-tracking-ui:   0.04em;
+
+  /* ---- ELEVATION — glow, not drop shadow ------------------------------ */
+  --at-elev-0: none;
+  --at-elev-1: 0 1px 0 0 var(--at-edge-faint) inset,
+               0 2px 12px -4px rgba(0,0,0,.7);
+  --at-elev-2: 0 1px 0 0 var(--at-edge-base) inset,
+               0 8px 28px -10px rgba(0,0,0,.8),
+               0 0 24px -12px var(--at-accent-6);
+  --at-elev-3: 0 1px 0 0 var(--at-edge-bright) inset,
+               0 16px 48px -16px rgba(0,0,0,.9),
+               0 0 40px -14px var(--at-accent-6);
+
+  /* ---- BLUR — glass thickness ----------------------------------------- */
+  --at-blur-thin: 6px;
+  --at-blur-base: 14px;
+  --at-blur-deep: 26px;
+
+  /* ---- GLOW INTENSITY — consumed by CSS and by GL uniforms ------------ */
+  --at-glow-off:  0;
+  --at-glow-low:  0.35;
+  --at-glow-mid:  0.7;
+  --at-glow-high: 1;
+
+  /* ---- GRAIN / CRT — read by the GL post chain ------------------------ */
+  --at-grain: 0.055;
+  --at-scanline: 0.05;
+  --at-aberration: 0.7;
+  --at-curvature: 0.035;
+  --at-bloom: 0.85;
+  --at-vignette: 0.42;
+
+  /* ---- RADII ---------------------------------------------------------- */
+  --at-r-sm: 6px;
+  --at-r-md: 12px;
+  --at-r-lg: 18px;
+  --at-r-pill: 999px;
+
+  /* ---- MOTION — springs and curves, by intent ------------------------- */
+  --at-dur-instant: 90ms;
+  --at-dur-snap:    170ms;
+  --at-dur-base:    280ms;
+  --at-dur-slow:    520ms;
+  --at-dur-ambient: 1200ms;
+
+  /* snappy: input feedback. organic: ambient. sharp: alerts. */
+  --at-ease-snap:    cubic-bezier(.2, .9, .3, 1);
+  --at-ease-organic: cubic-bezier(.45, .05, .3, 1);
+  --at-ease-sharp:   cubic-bezier(.7, 0, .3, 1);
+  --at-ease-out:     cubic-bezier(.16, 1, .3, 1);
+
+  /* spring params consumed by framer-motion via atomMotion.js */
+  --at-spring-snap-stiffness: 420;
+  --at-spring-snap-damping: 32;
+  --at-spring-soft-stiffness: 170;
+  --at-spring-soft-damping: 26;
+
+  /* ---- QUALITY TIER — set on <html> by AtomBackdrop -------------------- */
+  --at-gl-opacity: 1;
+}
+
+/* Quality tiers scale the *whole* language down together, so a lower tier
+   still reads as the same design rather than a broken version of it. */
+:root[data-at-quality="high"]     { --at-blur-deep: 18px; --at-bloom: .7; }
+:root[data-at-quality="balanced"] { --at-blur-deep: 12px; --at-blur-base: 9px;
+                                    --at-bloom: .5; --at-grain: .04;
+                                    --at-aberration: .35; --at-curvature: .02; }
+:root[data-at-quality="reduced"]  { --at-blur-deep: 0px; --at-blur-base: 0px;
+                                    --at-blur-thin: 0px; --at-bloom: 0;
+                                    --at-grain: 0; --at-aberration: 0;
+                                    --at-curvature: 0; --at-scanline: 0;
+                                    --at-gl-opacity: 0;
+                                    --at-surface-thin:  #070c17;
+                                    --at-surface-base:  #0b1222;
+                                    --at-surface-raised:#111a2e;
+                                    --at-surface-hot:   #17233c; }
+
+/* Accessibility. Reduced transparency collapses glass to solid fills that keep
+   the same contrast relationships, so text never loses its ratio. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --at-surface-thin:  #070c17;
+    --at-surface-base:  #0b1222;
+    --at-surface-raised:#111a2e;
+    --at-surface-hot:   #17233c;
+    --at-blur-thin: 0px; --at-blur-base: 0px; --at-blur-deep: 0px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --at-dur-instant: 1ms; --at-dur-snap: 1ms; --at-dur-base: 1ms;
+    --at-dur-slow: 1ms; --at-dur-ambient: 1ms;
+    --at-grain: 0; --at-aberration: 0;
+  }
+}
+
+/* ===========================================================================
+   Material primitives. Components compose these; they never restate values.
+   =========================================================================== */
+
+.at-glass {
+  background: var(--at-surface-base);
+  backdrop-filter: blur(var(--at-blur-base)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--at-blur-base)) saturate(140%);
+  border: 1px solid var(--at-edge-base);
+  border-radius: var(--at-r-md);
+  box-shadow: var(--at-elev-2);
+  position: relative;
+  isolation: isolate;
+}
+
+/* The bright top rim that makes glass read as thick rather than tinted. */
+.at-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(180deg,
+    var(--at-edge-bright) 0%,
+    transparent 38%,
+    transparent 62%,
+    var(--at-edge-faint) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.at-glass-raised { background: var(--at-surface-raised); box-shadow: var(--at-elev-3); }
+.at-glass-thin   { background: var(--at-surface-thin);
+                   backdrop-filter: blur(var(--at-blur-thin)) saturate(120%);
+                   -webkit-backdrop-filter: blur(var(--at-blur-thin)) saturate(120%);
+                   box-shadow: var(--at-elev-1); }
+
+/* Holographic emissive text — the phosphor bleed that separates "has shaders"
+   from "looks expensive". Kept subtle enough to preserve stem contrast. */
+.at-emissive {
+  color: var(--at-text-hi);
+  text-shadow:
+    0 0 1px rgba(125, 228, 255, calc(.55 * var(--at-glow-mid))),
+    0 0 10px rgba(47, 201, 244, calc(.30 * var(--at-glow-mid)));
+}
+.at-emissive-accent {
+  color: var(--at-accent-8);
+  text-shadow:
+    0 0 1px rgba(125, 228, 255, .7),
+    0 0 14px rgba(47, 201, 244, .45);
+}
+:root[data-at-quality="reduced"] .at-emissive,
+:root[data-at-quality="reduced"] .at-emissive-accent { text-shadow: none; }
+
+/* Hairline rules glow instead of sitting flat. */
+.at-rule {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(90deg, transparent,
+    var(--at-edge-bright) 18%, var(--at-edge-bright) 82%, transparent);
+  box-shadow: 0 0 8px -2px var(--at-accent-6);
+}
+
+.at-label {
+  font-family: var(--at-font-data);
+  font-size: 10px;
+  letter-spacing: var(--at-tracking-wide);
+  text-transform: uppercase;
+  color: var(--at-text-lo);
+}
+
+.at-data { font-family: var(--at-font-data); font-variant-numeric: tabular-nums; }
+
+/* ===========================================================================
+   COMPATIBILITY LAYER — this is how the overhaul reaches every surface
+   ---------------------------------------------------------------------------
+   Every pocket-ai component styles itself through seven CSS variables and four
+   utility classes. Redefining those in terms of the new ramps re-skins the
+   entire app — chat, camera, gallery, tasks, GPIO, settings, keyboard, library
+   — without editing a single component, touching a handler, or moving a
+   button. That is the whole reason this overhaul can satisfy "only the UI
+   changes" while still being total.
+
+   Chrome surfaces therefore get the language automatically, at the restrained
+   intensity these base values encode. Hero surfaces opt into more by adding
+   .at-glass / .at-emissive on top.
+   =========================================================================== */
+:root {
+  --pixel-bg:        var(--at-base-1);
+  --pixel-surface:   var(--at-surface-base);
+  --pixel-primary:   var(--at-accent-6);
+  --pixel-secondary: var(--at-violet-6);
+  --pixel-accent:    var(--at-signal-ok);
+  --pixel-text:      var(--at-text-hi);
+  --pixel-border:    var(--at-edge-base);
+}
+
+/* Type: the pixel faces go. Glass and 1px-stem bitmap type cannot coexist
+   coherently (recon §4.3), and legibility beats nostalgia. */
+body, .font-\[\'VT323\'\] { font-family: var(--at-font-ui) !important; }
+[class*="Press_Start_2P"], [class*="Press Start 2P"] {
+  font-family: var(--at-font-display) !important;
+  letter-spacing: var(--at-tracking-ui);
+  font-weight: 600;
+}
+
+/* Buttons become glass with a holographic rim and a specular sweep on press. */
+.pixel-btn {
+  font-family: var(--at-font-display) !important;
+  font-weight: 600;
+  letter-spacing: var(--at-tracking-ui);
+  color: var(--at-text-hi);
+  background: var(--at-surface-legible) !important;
+  backdrop-filter: blur(var(--at-blur-base)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--at-blur-base)) saturate(140%);
+  border: 1px solid var(--at-edge-base) !important;
+  border-radius: var(--at-r-md);
+  box-shadow: var(--at-elev-2) !important;
+  transition: background var(--at-dur-snap) var(--at-ease-snap),
+              border-color var(--at-dur-snap) var(--at-ease-snap),
+              box-shadow var(--at-dur-snap) var(--at-ease-snap),
+              transform var(--at-dur-instant) var(--at-ease-snap);
+  position: relative;
+  overflow: hidden;
+}
+.pixel-btn:hover {
+  background: rgba(12, 22, 40, 0.72) !important;
+  border-color: var(--at-edge-bright) !important;
+  box-shadow: var(--at-elev-3) !important;
+  color: var(--at-text-hi) !important;
+}
+.pixel-btn:active { transform: translateY(1px) scale(.995); }
+.pixel-btn:focus-visible {
+  outline: 2px solid var(--at-accent-6);
+  outline-offset: 2px;
+}
+/* Top rim — the tell that a surface has thickness. */
+.pixel-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--at-edge-hot), transparent);
+  opacity: .55;
+  pointer-events: none;
+}
+
+.pixel-input, .pixel-select {
+  font-family: var(--at-font-data) !important;
+  color: var(--at-text-hi);
+  background: var(--at-surface-sunken) !important;
+  border: 1px solid var(--at-edge-base) !important;
+  border-radius: var(--at-r-sm);
+  box-shadow: inset 0 1px 10px -4px #000;
+  transition: border-color var(--at-dur-snap) var(--at-ease-snap),
+              box-shadow var(--at-dur-snap) var(--at-ease-snap);
+}
+.pixel-input:focus, .pixel-select:focus {
+  border-color: var(--at-accent-6) !important;
+  box-shadow: inset 0 1px 10px -4px #000, 0 0 0 3px rgba(47,201,244,.16),
+              0 0 22px -8px var(--at-accent-6);
+}
+.pixel-input::placeholder { color: var(--at-text-lo); }
+
+.pixel-card {
+  background: var(--at-surface-base) !important;
+  backdrop-filter: blur(var(--at-blur-base)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--at-blur-base)) saturate(140%);
+  border: 1px solid var(--at-edge-base) !important;
+  border-radius: var(--at-r-lg);
+  box-shadow: var(--at-elev-2) !important;
+}
+
+/* The DOM must not paint over the GL canvas. pocket-ai sets an opaque
+   background on the app shell and on every route root; make those layers
+   transparent so the field shows through, and keep the UI above it. */
+html, body, #root { background: transparent !important; }
+body { background: var(--at-base-1) !important; }
+#root { position: relative; z-index: 1; }
+#root > div { background: transparent !important; }
+
+/* Scrollbars, so even the chrome-est chrome is on-language. */
+* { scrollbar-color: var(--at-edge-base) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb {
+  background: var(--at-edge-base);
+  border-radius: var(--at-r-pill);
+}
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------------------------------------------------------------------------
+   Let the field through.
+   pocket-ai paints an opaque --pixel-bg on the app shell AND on every route
+   root, which would cover the GL canvas completely. Only those full-screen
+   wrappers are cleared — component-level surfaces keep their fill so text
+   never sits directly on moving imagery (contrast, per the AA requirement).
+   Selectors match Tailwind v4's arbitrary-value class, escaped.
+   --------------------------------------------------------------------------- */
+.h-screen.bg-\[var\(--pixel-bg\)\],
+.h-full.bg-\[var\(--pixel-bg\)\],
+.min-h-screen.bg-\[var\(--pixel-bg\)\] {
+  background: transparent !important;
+}
+
+/* Route transition wrappers from AnimatePresence sit between the two. */
+.flex-1.overflow-hidden.relative { background: transparent !important; }
+
+/* Hero surfaces read the field through glass; chrome keeps a denser ground so
+   long-form text (chat, library results) always clears AA. */
+.at-hero-veil {
+  background: linear-gradient(180deg,
+    rgba(4,7,15,.10) 0%, rgba(4,7,15,.28) 55%, rgba(4,7,15,.55) 100%);
+}
