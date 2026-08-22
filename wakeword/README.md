@@ -52,8 +52,26 @@ machine.
  
 On the machine holding the model + your recorded dataset, from the repository root:
  
-    pip install openwakeword onnxruntime numpy
+    pip install openwakeword onnxruntime numpy scikit-learn
+    python -c "import openwakeword.utils as u; u.download_models(model_names=['hey_atom'])"
     python validate_model.py hey_atom.onnx --data data/
+
+Those two extra steps are not optional and are easy to miss:
+
+- **scikit-learn** — `openwakeword/__init__.py` imports it, so without it
+  `import openwakeword` fails outright with `ModuleNotFoundError: sklearn`,
+  before your model is ever read.
+- **`download_models(...)`** — openWakeWord's wheel ships **no model
+  binaries**. Every model needs the shared `melspectrogram.onnx` and
+  `embedding_model.onnx`, which are downloaded separately (~6 MB, one
+  time). Without them onnxruntime raises `NO_SUCHFILE` from inside the
+  constructor, which reads as "my trained model is broken" when it is
+  fine. Passing a name that matches no official model, as above, fetches
+  only those shared files — calling `download_models()` with no arguments
+  additionally pulls six unrelated wake models you will never use.
+
+On the Pi the installer does both for you; this applies to the training
+machine, and to any hand-built environment.
  
 This replays every recorded clip through the model exactly as the
 listener would, sweeps thresholds, and reports: positives caught,

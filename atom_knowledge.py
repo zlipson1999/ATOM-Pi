@@ -41,20 +41,72 @@ from pathlib import Path
 HOME = Path(__file__).parent
 INDEX_DIR = Path(os.environ.get("LIBRARY_INDEX_DIR", HOME / "library_index"))
 KIWIX_PORT = int(os.environ.get("KIWIX_PORT", "8090"))
-LIB_ENV = os.environ.get("ATOM_LIBRARY_PATH", "").strip()
 DOC_EXT = {".pdf", ".txt", ".md", ".epub"}
 MAX_INDEX_CHARS = 200_000          # per document, keeps multi-TB drives sane
 SNIPPET = 700
 
 
 # ---------------------------------------------------------------- discovery
+def _scan(root: Path, match, limit: int, max_depth: int) -> list[Path]:
+    """Breadth-limited, symlink-safe search under root.
+
+    Path.rglob() is unbounded and follows directory symlinks, so on the
+    multi-TB drives this module is built for it could walk for minutes — or
+    forever, around a symlink loop — and find_library() runs on EVERY query.
+    This walks with an explicit depth cap, skips symlinks, tolerates
+    permission errors, and stops as soon as it has `limit` matches.
+    """
+    out, stack, seen = [], [(root, 0)], set()
+    while stack and len(out) < limit:
+        d, depth = stack.pop()
+        try:
+            real = d.resolve()
+            if real in seen:
+                continue
+            seen.add(real)
+            entries = list(d.iterdir())
+        except (PermissionError, OSError):
+            continue
+        for e in entries:
+            try:
+                if e.is_symlink():
+                    continue
+                if e.is_dir():
+                    if depth < max_depth:
+                        stack.append((e, depth + 1))
+                elif match(e):
+                    out.append(e)
+                    if len(out) >= limit:
+                        break
+            except (PermissionError, OSError):
+                continue
+    return out
+
+
+_LIB_CACHE: Path | None = None
+
+
 def find_library() -> Path | None:
     """The library root: $ATOM_LIBRARY_PATH if set, else the first
     mounted volume under /media or /mnt containing an 'atom-library'
-    folder or any .zim file. Re-run on every query (disconnect-safe)."""
-    if LIB_ENV:
-        p = Path(LIB_ENV)
+    folder or any .zim file.
+
+    Disconnect-safe: the discovered root is remembered but re-validated on
+    every call, so unplugging the drive is noticed immediately and
+    replugging resumes without a fresh scan. Only a genuinely absent
+    library pays for a search, and that search is depth-bounded.
+    """
+    global _LIB_CACHE
+    # Read the environment live rather than at import: start-atom.sh sources
+    # .env before launching, but atom_doctor and the CLI import this module
+    # directly, where a value set afterwards used to be ignored.
+    env = os.environ.get("ATOM_LIBRARY_PATH", "").strip()
+    if env:
+        p = Path(env)
         return p if p.exists() else None
+    if _LIB_CACHE is not None and _LIB_CACHE.exists():
+        return _LIB_CACHE
+    _LIB_CACHE = None
     roots = []
     for base in (Path("/media"), Path("/mnt")):
         if base.exists():
@@ -62,21 +114,21 @@ def find_library() -> Path | None:
             roots += [d for d in base.glob("*") if d.is_dir()]
     for r in roots:
         if (r / "atom-library").is_dir():
-            return r / "atom-library"
+            _LIB_CACHE = r / "atom-library"
+            return _LIB_CACHE
     for r in roots:
-        try:
-            if any(r.rglob("*.zim")):
-                return r
-        except (PermissionError, OSError):
-            continue
+        # Shallow: a .zim buried more than a few levels down on a big drive is
+        # not worth stalling every voice query over. Point ATOM_LIBRARY_PATH
+        # at it instead.
+        if _scan(r, lambda e: e.suffix.lower() == ".zim", limit=1, max_depth=3):
+            _LIB_CACHE = r
+            return _LIB_CACHE
     return None
 
 
 def _zims(root: Path):
-    try:
-        return sorted(root.rglob("*.zim"))[:50]
-    except OSError:
-        return []
+    return sorted(_scan(root, lambda e: e.suffix.lower() == ".zim",
+                        limit=50, max_depth=6))
 
 
 # ---------------------------------------------------------------- kiwix
@@ -162,6 +214,11 @@ def _db(root: Path) -> sqlite3.Connection:
     con = sqlite3.connect(INDEX_DIR / f"{key}.db")
     con.execute("CREATE VIRTUAL TABLE IF NOT EXISTS docs USING fts5"
                 "(path, title, body)")
+    # Companion table: FTS5 cannot carry a typed mtime/size usefully, and
+    # without them the index could only ever grow — a file edited on the
+    # drive kept serving its old text, and a deleted file was never removed.
+    con.execute("CREATE TABLE IF NOT EXISTS docmeta"
+                "(path TEXT PRIMARY KEY, mtime REAL, size INTEGER)")
     return con
 
 
@@ -215,22 +272,63 @@ def _walk(root: Path):
 
 
 def index_documents(root: Path) -> str:
+    """Bring the index in line with what is actually on the drive.
+
+    Adds new documents, re-reads ones whose mtime or size changed, and drops
+    ones that no longer exist. Previously this only ever inserted unseen
+    paths, so an edited file kept answering with its old text and a deleted
+    file stayed searchable forever.
+    """
     con = _db(root)
     try:
-        known = {r[0] for r in con.execute("SELECT path FROM docs")}
-        added = 0
+        known = {r[0]: (r[1], r[2])
+                 for r in con.execute("SELECT path, mtime, size FROM docmeta")}
+        # Migration: an index built before docmeta existed has rows in `docs`
+        # but no stamps. Every file would then look new and be inserted a
+        # second time, duplicating every search hit. Rebuild once instead.
+        if not known and con.execute("SELECT count(*) FROM docs").fetchone()[0]:
+            con.execute("DELETE FROM docs")
+            con.commit()
+        added = updated = 0
+        seen = set()
         for p in _walk(root):
-            if p.suffix.lower() in DOC_EXT and str(p) not in known:
-                body = _extract(p)
-                if body.strip():
-                    con.execute("INSERT INTO docs VALUES (?,?,?)",
-                                (str(p), p.stem.replace("_", " "), body))
-                    added += 1
-                    if added % 25 == 0:
-                        con.commit()
+            if p.suffix.lower() not in DOC_EXT:
+                continue
+            key = str(p)
+            seen.add(key)
+            try:
+                st = p.stat()
+                stamp = (st.st_mtime, st.st_size)
+            except OSError:
+                continue
+            prev = known.get(key)
+            if prev is not None and prev[0] == stamp[0] and prev[1] == stamp[1]:
+                continue                      # unchanged since last index
+            body = _extract(p)
+            if not body.strip():
+                continue
+            if prev is not None:
+                con.execute("DELETE FROM docs WHERE path = ?", (key,))
+                updated += 1
+            else:
+                added += 1
+            con.execute("INSERT INTO docs VALUES (?,?,?)",
+                        (key, p.stem.replace("_", " "), body))
+            con.execute("INSERT OR REPLACE INTO docmeta VALUES (?,?,?)",
+                        (key, stamp[0], stamp[1]))
+            if (added + updated) % 25 == 0:
+                con.commit()
+        # Prune anything indexed earlier that is no longer on the drive. Only
+        # safe because _walk just completed a full pass of a mounted root.
+        removed = 0
+        for gone in set(known) - seen:
+            con.execute("DELETE FROM docs WHERE path = ?", (gone,))
+            con.execute("DELETE FROM docmeta WHERE path = ?", (gone,))
+            removed += 1
         con.commit()
         total = con.execute("SELECT count(*) FROM docs").fetchone()[0]
-        return f"Indexed {added} new document(s); {total} total in the library index."
+        return (f"Indexed {added} new, {updated} changed, {removed} removed; "
+                f"{total} total in the library index.")
     finally:
         con.close()
 
@@ -248,11 +346,17 @@ def doc_search(root: Path, query: str, n: int = 3) -> list[dict]:
         con.close()   # one connection per query was leaked before; the
                       # backend is long-running and eventually hit the fd cap
     out = []
+    root_here = root.exists()
     for path, title, snip in rows:
-        exists = Path(path).exists()
-        out.append({"title": title,
-                    "source": path if exists else path + " (drive disconnected)",
-                    "text": snip})
+        if Path(path).exists():
+            source = path
+        elif not root_here:
+            source = path + " (drive disconnected)"
+        else:
+            # The drive is mounted but this file is not on it any more —
+            # calling that "disconnected" sent people hunting for a cable.
+            source = path + " (file no longer on the drive — re-run --index)"
+        out.append({"title": title, "source": source, "text": snip})
     return out
 
 

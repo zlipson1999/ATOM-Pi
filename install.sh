@@ -93,6 +93,11 @@ install_atom_layer() {
   for f in wakeword_listener.py vision_describe.py atom_doctor.py atom_knowledge.py personality.txt; do
     cp "$(src "$f")" "$APP_DIR/" || die "ATOM module missing from the repo: $f"
   done
+  # The wake-word banner below tells the user to run this ON the Pi, so it has
+  # to actually be there. Non-fatal: it is a training tool, not a runtime one.
+  REC="$REPO_DIR/wakeword/record_dataset.py"; [ -f "$REC" ] || REC="$REPO_DIR/record_dataset.py"
+  if [ -f "$REC" ]; then cp "$REC" "$APP_DIR/record_dataset.py"
+  else warn "record_dataset.py not found — dataset recorder won't be on the Pi"; fi
   # validate_model.py is installed under a clearer name next to the app.
   # Both locations are checked because the repo has carried it in each.
   VAL="$REPO_DIR/wakeword/validate_model.py"; [ -f "$VAL" ] || VAL="$REPO_DIR/validate_model.py"
@@ -109,9 +114,35 @@ install_atom_layer() {
   ( [ -f "$APP_DIR/.venv/bin/activate" ] && . "$APP_DIR/.venv/bin/activate"
     python3 "$PATCHER" "$APP_DIR" ) || warn "some patches printed manual follow-ups above — see README"
 
+  # openWakeWord ships NO model binaries in its wheel. Every Model() builds an
+  # AudioFeatures, which loads melspectrogram.onnx + embedding_model.onnx from
+  # the package's own resources/models directory — fetched separately, at
+  # runtime. Without them the ears raise NO_SUCHFILE and the start-atom
+  # watchdog restarts them every 3 seconds forever.
+  #
+  # Passing a model name that matches no official model downloads ONLY the
+  # shared feature + VAD models (~6 MB). Calling download_models() with no
+  # arguments would additionally pull six unrelated wake models (alexa,
+  # hey_jarvis, ...) that ATOM never uses.
+  #
+  # This lives here rather than beside the pip installs so that `--sync`
+  # retries it — that is the documented recovery when the first install ran
+  # offline. It is a no-op once the files are present.
+  bold "openWakeWord feature models"
+  ( [ -f "$APP_DIR/.venv/bin/activate" ] && . "$APP_DIR/.venv/bin/activate"
+    python3 - <<'OWWEOF'
+import openwakeword.utils as u
+u.download_models(model_names=["hey_atom"])
+from openwakeword.utils import AudioFeatures
+AudioFeatures(inference_framework="onnx")
+OWWEOF
+  ) && ok "feature models present (melspectrogram + embedding)" \
+    || warn "openWakeWord feature models unavailable — 'Hey ATOM' will NOT load until these download. With the Pi online, re-run: bash install.sh --sync"
+
   bold "Wake phrase: Hey ATOM"
-  if [ -f "$REPO_DIR/hey_atom.onnx" ]; then
-    cp "$REPO_DIR/hey_atom.onnx" "$APP_DIR/hey_atom.onnx"
+  WW="$REPO_DIR/wakeword/hey_atom.onnx"; [ -f "$WW" ] || WW="$REPO_DIR/hey_atom.onnx"
+  if [ -f "$WW" ]; then
+    cp "$WW" "$APP_DIR/hey_atom.onnx"
     ok "hey_atom.onnx installed — physical microphone validation still required (VALIDATION.md Phase 2)"
   elif [ -f "$APP_DIR/hey_atom.onnx" ]; then
     ok "hey_atom.onnx present — physical microphone validation still required (VALIDATION.md Phase 2)"
@@ -129,7 +160,8 @@ install_atom_layer() {
     echo "     1. wakeword/README.md in the atom-pi repo — full pipeline"
     echo "     2. Record your dataset:  python record_dataset.py"
     echo "     3. Train via openWakeWord's Colab notebook (phrase: hey atom)"
-    echo "     4. Validate:  python validate_model.py hey_atom.onnx --data data/"
+    echo "     4. Validate:  python wakeword_validate.py hey_atom.onnx --data data/"
+    echo "        (in a repo checkout that file is named validate_model.py)"
     echo "     5. Put hey_atom.onnx in the repo, then run:  bash install.sh --sync"
     echo "        (or simply: cp hey_atom.onnx ~/pocket-ai/ && sudo reboot)"
     echo "  ============================================="
@@ -300,10 +332,15 @@ if [ "$(get_stage)" -eq 3 ]; then
   pip install -r requirements.txt || die "pip install of pocket-ai requirements failed"
   pip install "semantic-router[local]" onnxruntime tqdm websocket-client requests huggingface_hub \
     || die "pip install of merge dependencies failed"
-  # openwakeword pinned; --no-deps avoids its tflite-runtime requirement,
-  # which has no wheel for current Python — the ONNX runtime path needs
-  # only what's installed above. (Verified: this exact combination loads.)
+  # openwakeword pinned. --no-deps avoids its tflite-runtime requirement,
+  # which has no wheel for current Python and is only needed by the tflite
+  # inference path — ATOM uses the ONNX path. But --no-deps ALSO drops the
+  # deps that path genuinely needs, so install them explicitly:
+  # scikit-learn is imported at module level by openwakeword/__init__.py
+  # (custom_verifier_model), so without it `import openwakeword` raises
+  # ModuleNotFoundError before any model is ever loaded.
   pip install --no-deps "openwakeword==0.6.0" || die "openwakeword install failed"
+  pip install "scikit-learn>=1,<2" || die "scikit-learn (openwakeword dependency) install failed"
   ok "Python environment ready"
 
   bold "[Stage 3] Configuring ATOM (.env — verified: pocket-ai reads all of this from environment)"
@@ -405,11 +442,15 @@ echo "======================================"
 # cold first boot model loading can take far longer than that, and the ears
 # would previously start talking to a backend that wasn't up yet.
 echo "waiting for the backend to come up..."
+# PORT comes from .env, sourced above. Hardcoding 8000 here meant that
+# changing PORT made this loop wait the full three minutes and then start
+# the ears against a backend it had decided was down.
+ATOM_HEALTH="http://localhost:\${PORT:-8000}/health"
 for _i in \$(seq 1 90); do
-  curl -sf http://localhost:8000/health >/dev/null 2>&1 && break
+  curl -sf "\$ATOM_HEALTH" >/dev/null 2>&1 && break
   sleep 2
 done
-if curl -sf http://localhost:8000/health >/dev/null 2>&1; then
+if curl -sf "\$ATOM_HEALTH" >/dev/null 2>&1; then
   echo "backend is up."
 else
   echo "backend still not answering after 3 minutes — starting the rest anyway; check atom.log"

@@ -9,8 +9,9 @@
  * interruptible by design).
  *
  * State priority (single resolver, applied in AtomRobotAdapter):
- *   error > boot > speaking > thinking > seeing > tool_use
- *         > listening > idle > offline(when disconnected)
+ *   error > boot > speaking > thinking > seeing > knowledge_search
+ *         > web_search > tool_use > listening > idle
+ *         > offline (when disconnected)
  * Animation interruption rules (enforced structurally):
  *   thinking->speaking: tap interval cleared on state change, arm
  *   transitions home; speaking->listening: mouth interval cleared;
@@ -24,7 +25,7 @@ const EYE="#39c0ff", EYE_ERR="#ff5c5c", EYE_OFF="#31404d";
 const VALID=["boot","idle","listening","thinking","seeing","knowledge_search","web_search","tool_use","speaking","error","offline"];
 const T="transform .55s cubic-bezier(.34,1.25,.45,1)";
 
-export default function AtomRobot({ state="idle", size=340 }) {
+export default function AtomRobot({ state="idle", size=340, className="", onClick }) {
   const s = VALID.includes(state) ? state : "idle";
   const [tick,setTick]=useState(0);
   const [tap,setTap]=useState(0);
@@ -73,7 +74,7 @@ export default function AtomRobot({ state="idle", size=340 }) {
     speaking:"speaking",error:"something went wrong",offline:"offline — limited mode"}[s];
 
   return (
-    <div style={{textAlign:"center"}}>
+    <div className={className} onClick={onClick} style={{textAlign:"center"}}>
       <svg viewBox="0 0 380 480" width={size} height={size*1.26}
            role="img" aria-label={`ATOM robot, ${label}`}>
         <defs>

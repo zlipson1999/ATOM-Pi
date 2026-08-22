@@ -28,11 +28,24 @@ a fixed duration.
    `python validate_model.py hey_atom.onnx --data data`
    — it must reach a PASS verdict and it suggests your
    `WAKEWORD_THRESHOLD`.
+   If validation aborts with `ModuleNotFoundError: sklearn` or an
+   onnxruntime `NO_SUCHFILE`, the model is not the problem — the
+   openWakeWord environment is incomplete. See "validate BEFORE
+   installing" in `wakeword/README.md`.
 2. Install: put `hey_atom.onnx` in the atom-pi repo and run
    `bash install.sh --sync`, OR copy it straight to
    `~/pocket-ai/hey_atom.onnx`. Put the suggested threshold in `.env`
    as `WAKEWORD_THRESHOLD`.
-3. Verify it loads:
+3. Confirm the wake engine itself is ready (separate from the model
+   file — `python atom_doctor.py` now reports this as "Wake engine"):
+
+       cd ~/pocket-ai && python atom_doctor.py | grep -i "wake"
+
+   Both "Wake model" and "Wake engine" must read `[ OK ]`. A missing
+   wake engine means openWakeWord's shared feature models were never
+   downloaded; with the Pi online, `bash install.sh --sync` fixes it.
+
+4. Verify it loads:
    ```
    cd ~/pocket-ai && source .venv/bin/activate && python wakeword_listener.py
    ```
@@ -52,6 +65,7 @@ a fixed duration.
 | Check | Result |
 |---|---|
 | hey_atom.onnx exists on the Pi | |
+| atom_doctor "Wake engine" reads [ OK ] | |
 | Model loads (message above) | |
 
 ---
