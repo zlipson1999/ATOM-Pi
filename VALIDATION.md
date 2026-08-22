@@ -64,6 +64,9 @@ a fixed duration.
 
 | Check | Result |
 |---|---|
+| Hub shows ATOM, robot on top, all five tiles reachable | |
+| VOICE tile starts a voice exchange with no wake model present | |
+| DESKTOP tile returns the Pi to the normal desktop | |
 | hey_atom.onnx exists on the Pi | |
 | atom_doctor "Wake engine" reads [ OK ] | |
 | Model loads (message above) | |
@@ -153,6 +156,13 @@ python atom_knowledge.py --status      # must show the drive path + counts
 python atom_knowledge.py --index      # first run may take a long time on big collections
 python atom_knowledge.py "raspberry pi"
 ```
+
+Then on the touchscreen, without needing the wake word: tap
+**LIBRARY** on the hub. The header must show `DRIVE CONNECTED` with
+real ZIM and document counts, **INDEX** must report added/changed/
+removed counts, and a search must return passages with their real
+titles and paths — not a summary. A query with no matches must say so
+rather than producing an answer.
 
 Then by voice: "Hey ATOM, what does my library say about Raspberry
 Pi?" and "Hey ATOM, compare my local library with what's online."

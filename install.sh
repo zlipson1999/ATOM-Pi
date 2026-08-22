@@ -90,7 +90,7 @@ install_atom_layer() {
   src() { if [ -f "$REPO_DIR/merged/$1" ]; then echo "$REPO_DIR/merged/$1"; else echo "$REPO_DIR/$1"; fi; }
 
   bold "Applying the ATOM merge (verified patches)"
-  for f in wakeword_listener.py vision_describe.py atom_doctor.py atom_knowledge.py personality.txt; do
+  for f in wakeword_listener.py vision_describe.py atom_doctor.py atom_knowledge.py atom_library_api.py personality.txt; do
     cp "$(src "$f")" "$APP_DIR/" || die "ATOM module missing from the repo: $f"
   done
   # The wake-word banner below tells the user to run this ON the Pi, so it has
@@ -106,7 +106,7 @@ install_atom_layer() {
   else
     warn "validate_model.py not found — live wake testing tool won't be on the Pi"
   fi
-  for f in AtomRobot.jsx AtomRobotAdapter.jsx; do
+  for f in AtomRobot.jsx AtomRobotAdapter.jsx AtomLibrary.jsx; do
     cp "$(src "$f")" "$APP_DIR/chat-gui/src/renderer/src/components/" \
       || die "robot component missing from the repo: $f"
   done
