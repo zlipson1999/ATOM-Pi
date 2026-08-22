@@ -65,3 +65,12 @@ is what is actually sampled.
 **Why:** it measured 1.51:1. A control that is quiet because it is unreadable is
 not quiet, it is broken. Hierarchy now comes from smaller type and a plain
 border rather than from failing contrast.
+
+## D9 — The calibrator may soften the look, never delete it
+**Decision:** automatic downgrade bottoms out at `balanced`. Only a principled
+reason reaches `reduced`: no WebGL2, a software renderer, or the user asking
+for reduced motion/transparency.
+**Why:** `reduced` tears the canvas down completely. A transient run of slow
+frames — which on this device means "the 4B model is mid-response" — must not
+be able to silently remove the entire visual identity. At `balanced` the field,
+the orb and the grade all survive; only bloom and render resolution give way.

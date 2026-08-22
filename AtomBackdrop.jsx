@@ -347,8 +347,17 @@ export default function AtomBackdrop({ state = 'idle', orb = null, audio = 0, ba
                 if (dt > 0.0215) slow++;             // missed a 46fps floor
                 if (frames > 120) {
                     if (slow / frames > 0.25) {
+                        // The calibrator may soften the look, but it must never
+                        // delete it. 'balanced' is the floor: the field, the orb
+                        // and the grade all survive, only bloom and resolution
+                        // give way. Dropping to 'reduced' tears the canvas down
+                        // entirely, and that is reserved for principled reasons
+                        // -- no WebGL2, a software renderer, or the user asking
+                        // for reduced motion/transparency -- never for a
+                        // transient frame dip while the model happens to be
+                        // generating.
                         const next = quality === 'ultra' ? 'high'
-                            : quality === 'high' ? 'balanced' : 'reduced';
+                            : quality === 'high' ? 'balanced' : 'balanced';
                         if (next !== quality) {
                             console.info(`[ATOM] ${Math.round(slow / frames * 100)}% slow frames — dropping to ${next}`);
                             quality = next; setTier(next);
