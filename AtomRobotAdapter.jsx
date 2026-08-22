@@ -26,9 +26,15 @@ const PRIORITY = ["error", "boot", "speaking", "thinking", "seeing",
                   "knowledge_search", "web_search", "tool_use",
                   "listening", "idle", "offline"];
 
-// Mirrors upstream Avatar's scale factors (sm 0.4 / lg 1 / xl 1.3).
-const SCALE = { sm: 0.4, lg: 1, xl: 1.3 };
-const BASE = 340;
+// Sized to the real device, not to a desktop browser. The Electron window is
+// 480x800 fullscreen (chat-gui/src/main/index.js), and Home.jsx spends that
+// height on a 28px status bar, a title block, and a 2x2 menu grid whose
+// buttons are min-h-[100px] — leaving ~408px for the robot. AtomRobot renders
+// height at size * 1.26, so anything above ~320 squeezes the menu below its
+// minimum and the bottom row falls off the screen. Measured at 480x800:
+// 340 -> menu gets 176px (needs 212), 442 -> 47px. 300 -> 226px, correct.
+// Ratios follow upstream Avatar's sm/lg/xl relationship.
+const SIZE = { sm: 92, lg: 230, xl: 300 };
 
 export default function AtomRobotAdapter({
   expression = "idle",
@@ -40,6 +46,6 @@ export default function AtomRobotAdapter({
   onClick,
 }) {
   const state = PRIORITY.includes(expression) ? expression : "idle";
-  const px = size ?? Math.round(BASE * (SCALE[variant] ?? 1));
+  const px = size ?? (SIZE[variant] ?? SIZE.lg);
   return <AtomRobot state={state} size={px} className={className} onClick={onClick} />;
 }
