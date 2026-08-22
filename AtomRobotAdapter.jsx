@@ -26,9 +26,19 @@ const PRIORITY = ["error", "boot", "speaking", "thinking", "seeing",
                   "knowledge_search", "web_search", "tool_use",
                   "listening", "idle", "offline"];
 
-// Mirrors upstream Avatar's scale factors (sm 0.4 / lg 1 / xl 1.3).
-const SCALE = { sm: 0.4, lg: 1, xl: 1.3 };
-const BASE = 340;
+// Sized to the real device, not to a desktop browser. The Electron window is
+// 480x800 fullscreen (chat-gui/src/main/index.js). On the ATOM hub that
+// height is spent on a 28px status bar (+4px border), 16px padding top and
+// bottom, the title block, a 48px gap, a 2x2 menu grid whose buttons are
+// min-h-[100px] (212px with its gap), and the 56px DESKTOP bar with its 12px
+// margin — about 460px before the robot gets any. AtomRobot renders height at
+// size * 1.26, so the robot must stay under ~269 or the bottom row falls off
+// the screen. Measured by rendering the real layout at 480x800:
+//   442 (an earlier variant mapping) -> menu 47px, two tiles off-screen
+//   340 (an earlier default)         -> menu 176px, still short of 212
+//   260                              -> everything fits with room to spare
+// Ratios follow upstream Avatar's sm/lg/xl relationship.
+const SIZE = { sm: 84, lg: 200, xl: 260 };
 
 export default function AtomRobotAdapter({
   expression = "idle",
@@ -40,6 +50,6 @@ export default function AtomRobotAdapter({
   onClick,
 }) {
   const state = PRIORITY.includes(expression) ? expression : "idle";
-  const px = size ?? Math.round(BASE * (SCALE[variant] ?? 1));
+  const px = size ?? (SIZE[variant] ?? SIZE.lg);
   return <AtomRobot state={state} size={px} className={className} onClick={onClick} />;
 }

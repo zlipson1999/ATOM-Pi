@@ -90,7 +90,7 @@ install_atom_layer() {
   src() { if [ -f "$REPO_DIR/merged/$1" ]; then echo "$REPO_DIR/merged/$1"; else echo "$REPO_DIR/$1"; fi; }
 
   bold "Applying the ATOM merge (verified patches)"
-  for f in wakeword_listener.py vision_describe.py atom_doctor.py atom_knowledge.py personality.txt; do
+  for f in wakeword_listener.py vision_describe.py atom_doctor.py atom_knowledge.py atom_library_api.py personality.txt; do
     cp "$(src "$f")" "$APP_DIR/" || die "ATOM module missing from the repo: $f"
   done
   # The wake-word banner below tells the user to run this ON the Pi, so it has
@@ -106,10 +106,23 @@ install_atom_layer() {
   else
     warn "validate_model.py not found — live wake testing tool won't be on the Pi"
   fi
-  for f in AtomRobot.jsx AtomRobotAdapter.jsx; do
+  for f in AtomRobot.jsx AtomRobotAdapter.jsx AtomLibrary.jsx AtomBackdrop.jsx AtomShaderLab.jsx; do
     cp "$(src "$f")" "$APP_DIR/chat-gui/src/renderer/src/components/" \
-      || die "robot component missing from the repo: $f"
+      || die "GUI component missing from the repo: $f"
   done
+  # Visual system: token stylesheet and shader sources sit one level above the
+  # components (AtomBackdrop imports '../atomShaders.js'), textures under
+  # assets/atom/ so Vite fingerprints and bundles them.
+  RSRC="$APP_DIR/chat-gui/src/renderer/src"
+  cp "$(src atom-visual.css)" "$RSRC/" || die "atom-visual.css missing from the repo"
+  cp "$(src atomShaders.js)"  "$RSRC/" || die "atomShaders.js missing from the repo"
+  mkdir -p "$RSRC/assets/atom"
+  if compgen -G "$REPO_DIR/atom-textures/*.png" >/dev/null; then
+    cp "$REPO_DIR"/atom-textures/*.png "$RSRC/assets/atom/"
+    ok "visual system installed (tokens, shaders, $(ls "$REPO_DIR"/atom-textures/*.png | wc -l) textures)"
+  else
+    warn "atom-textures/*.png not found — regenerate with: node tools/gen_textures.mjs"
+  fi
   PATCHER="$REPO_DIR/patches/apply_patches.py"; [ -f "$PATCHER" ] || PATCHER="$REPO_DIR/apply_patches.py"
   ( [ -f "$APP_DIR/.venv/bin/activate" ] && . "$APP_DIR/.venv/bin/activate"
     python3 "$PATCHER" "$APP_DIR" ) || warn "some patches printed manual follow-ups above — see README"
