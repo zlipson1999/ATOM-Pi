@@ -48,6 +48,7 @@
   <div class="at-right">
     <div class="at-log" id="atLog"></div>
     <div class="at-bar">
+      <button class="at-btn" id="atBrainBtn" title="Connect a brain (optional Anthropic API key, kept in this tab only)"><i class="ti ti-plug"></i></button>
       <button class="at-btn" id="atCamBtn" title="Toggle camera"><i class="ti ti-camera"></i></button>
       <button class="at-btn" id="atMicBtn" title="Speak"><i class="ti ti-microphone"></i></button>
       <input class="at-in" id="atInput" placeholder="Type, or tap the mic and talk…"/>
@@ -167,6 +168,21 @@ document.querySelectorAll('button[data-s]').forEach(b=>b.addEventListener('click
 const $=id=>document.getElementById(id);
 const log=$('atLog'),input=$('atInput');
 let history=[],camStream=null,speaking=false;
+// The brain is OPT-IN. This page previously POSTed to api.anthropic.com with
+// no credentials and no anthropic-version header, so every request failed and
+// the demo silently showed "I couldn't reach my brain just now" forever.
+// A key is never stored in this file; it is asked for once, kept only in this
+// browser tab (sessionStorage), and never sent anywhere but Anthropic.
+// Without a key the demo still does its real job — the robot, every state,
+// and the scripted interaction contract — and says so honestly.
+function atomKey(force){
+  let k=null; try{k=sessionStorage.getItem('atom_demo_key')}catch(e){}
+  if(!k||force){
+    k=window.prompt("Optional: paste an Anthropic API key to give this demo a live brain.\n\nIt stays in this browser tab only (sessionStorage) and is sent solely to api.anthropic.com. Leave blank to keep using the demo without a brain — the robot, states, and scripted run all work regardless.");
+    if(k){k=k.trim(); try{sessionStorage.setItem('atom_demo_key',k)}catch(e){}}
+  }
+  return k||null;
+}
 const SYSTEM=`You are ATOM, a small good-natured sparring-robot AI, demoing yourself in Zach's browser before your real body (a Raspberry Pi 5, Hailo chip, 10-inch touchscreen) is built. Personality: warm, playful, loyal, a bit funny, with a fighter's calm — and you speak with refined British eloquence. Keep answers SHORT: 1-3 sentences, spoken-friendly. If given a camera image, describe only what you genuinely see. Never invent things not visible.`;
 function addMsg(t,who){const d=document.createElement('div');d.className='at-msg '+(who==='user'?'at-user':'at-bot');d.textContent=t;log.appendChild(d);log.scrollTop=log.scrollHeight;}
 function speak(text){try{
@@ -189,16 +205,38 @@ async function send(text){
     if(b)content=[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b}},{type:'text',text}];
     setTimeout(()=>{if(S==='seeing')setState('thinking')},1400);}
   history.push({role:'user',content});
+  const key=atomKey(false);
+  if(!key){
+    history.pop();
+    addMsg("No brain connected in this demo — I'm running as the robot body only. Every state button and the scripted run still work. Click 'connect brain' if you want to give me a live one.",'bot');
+    setState('idle'); return;
+  }
   try{
     const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json',
+               'x-api-key':key,
+               'anthropic-version':'2023-06-01',
+               // Required for calls made directly from a browser; without it
+               // Anthropic rejects the request at CORS preflight.
+               'anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system:SYSTEM,messages:history})});
+    if(!r.ok){
+      const detail=await r.text().catch(()=>'');
+      history.pop();
+      addMsg(`My brain refused that request (HTTP ${r.status}). ${r.status===401?'That key was not accepted — click \u2018connect brain\u2019 to re-enter it.':detail.slice(0,140)}`,'bot');
+      setState('error'); setTimeout(()=>setState('idle'),1500); return;
+    }
     const data=await r.json();
     const reply=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n')||'I got a bit tangled — try me again?';
     history.push({role:'assistant',content:reply}); if(history.length>20)history=history.slice(-20);
     addMsg(reply,'bot'); speak(reply);
-  }catch(e){addMsg("I couldn't reach my brain just now — check the connection.",'bot');setState('error');setTimeout(()=>setState('idle'),1500);}
+  }catch(e){history.pop();addMsg("I couldn't reach my brain just now — "+(e&&e.message?e.message:'network or CORS error')+".",'bot');setState('error');setTimeout(()=>setState('idle'),1500);}
 }
+$('atBrainBtn').addEventListener('click',()=>{
+  const k=atomKey(true);
+  addMsg(k?"Brain connected for this browser tab. Ask me something."
+          :"Still running as the robot body only — no brain connected.",'bot');
+});
 $('atSend').addEventListener('click',()=>send(input.value));
 input.addEventListener('keydown',e=>{if(e.key==='Enter')send(input.value)});
 $('atCamBtn').addEventListener('click',async()=>{

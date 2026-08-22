@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Wake-word training artefacts — recordings and models are large and personal;
+# hey_atom.onnx is deliberately NOT ignored (the installer reads it from the
+# repo root or wakeword/), but the raw dataset should not be committed.
+data/positive/
+data/negative/
+data/**/*.wav
+
+# Local library index (rebuildable from the drive)
+library_index/
+
+# Install/runtime output
+atom-pi-install.log
+atom.log
+.env
+.env.bak-*

@@ -280,11 +280,18 @@ pretends.
 
 `atom-live-demo.html` in this repo runs in any desktop browser: the
 full robot, every state on buttons, a scripted run of the complete
-interaction contract, plus a real AI (Claude standing in for the
-local brain) with your computer's camera and mic. It exists so the
-robot, gesture, and flow can be validated before the Pi is even
-assembled — and the README says plainly: passing in simulation is
-not hardware validation.
+interaction contract, and your computer's camera and mic. It exists
+so the robot, gesture, and flow can be validated before the Pi is
+even assembled — and the README says plainly: passing in simulation
+is not hardware validation.
+
+The chat brain is **optional and opt-in**. Click the plug button to
+paste an Anthropic API key; it is kept in that browser tab only
+(`sessionStorage`), never written into the file, and sent only to
+Anthropic. Without a key the demo says so and everything else still
+works. (An earlier version of this page sent an unauthenticated
+request, so the brain never worked and the page merely reported a
+connection problem.)
 
 ## Customizing
 

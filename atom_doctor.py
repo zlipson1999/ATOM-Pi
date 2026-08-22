@@ -37,6 +37,23 @@ def row(name, status, note=""):
     print(f"  {mark} {name:<22} {note}")
     return status
 
+def wake_engine():
+    """(status, note) for openWakeWord's importability + feature models."""
+    try:
+        import openwakeword
+    except Exception as exc:
+        name = getattr(exc, "name", "") or ""
+        hint = " (pip install 'scikit-learn>=1,<2')" if name == "sklearn" else ""
+        return "MISSING", f"openwakeword not importable: {exc}{hint}"
+    res = Path(openwakeword.__file__).parent / "resources" / "models"
+    missing = [n for n in ("melspectrogram.onnx", "embedding_model.onnx")
+               if not (res / n).exists()]
+    if missing:
+        return "MISSING", (f"feature models absent ({', '.join(missing)}) — "
+                           "fix: bash ~/atom-pi/install.sh --sync")
+    return "OK", "feature models present"
+
+
 def checks():
     print("ATOM-Pi Hardware & Software Check\n" + "=" * 46)
     results = []
@@ -54,6 +71,12 @@ def checks():
     results.append(row("Speaker", "OK" if "card" in sh("aplay -l") else "MISSING"))
     results.append(row("Wake model", "OK" if (APP/"hey_atom.onnx").exists() else "MISSING",
                        "present — mic validation per VALIDATION.md still required" if (APP/"hey_atom.onnx").exists() else "'Hey ATOM' off — mic button works"))
+    # The model file alone proves nothing: openWakeWord ships no model
+    # binaries in its wheel, and every Model() loads melspectrogram.onnx +
+    # embedding_model.onnx from its own package directory. Without those the
+    # ears die on start and the watchdog restarts them forever — while this
+    # table used to cheerfully report the wake model as OK.
+    results.append(row("Wake engine", *wake_engine()))
     voice = (APP/"models/en_GB-alan-medium.onnx").exists()
     results.append(row("Voice model", "OK" if voice else "DEGRADED", "" if voice else "falls back to default US voice"))
     brain = any((APP/"models").glob("*.gguf")) if (APP/"models").exists() else False
@@ -64,7 +87,8 @@ def checks():
         with urllib.request.urlopen("http://localhost:8000/health", timeout=3) as r:
             ok = json.load(r).get("status") == "ok"
     except Exception: ok = False
-    results.append(row("Backend", "OK" if ok else "MISSING", "" if ok else "start it: bash start-atom.sh"))
+    results.append(row("Backend", "OK" if ok else "MISSING",
+                       "" if ok else f"start it: bash {APP}/start-atom.sh"))
     results.append(row("Config (.env)", "OK" if (APP/".env").exists() else "DEGRADED"))
     try:
         urllib.request.urlopen("https://one.one.one.one", timeout=3)
@@ -131,5 +155,9 @@ def version():
 
 if __name__ == "__main__":
     a = sys.argv[1:] or [""]
-    {"--sound": sound, "--mic": mic, "--backup": backup,
-     "--logs": logs, "--version": version}.get(a[0], checks)()
+    modes = {"--sound": sound, "--mic": mic, "--backup": backup,
+             "--logs": logs, "--version": version}
+    if a[0] and a[0] not in modes:
+        sys.exit(f"Unknown option {a[0]!r}. Use one of: "
+                 + ", ".join(sorted(modes)) + ", or no option for the check table.")
+    modes.get(a[0], checks)()

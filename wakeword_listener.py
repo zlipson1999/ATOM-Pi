@@ -43,7 +43,26 @@ from pathlib import Path
 import numpy as np
 import pyaudio
 import websocket
-from openwakeword.model import Model
+
+# Imported defensively rather than at module scope. openwakeword/__init__.py
+# imports scikit-learn transitively, so a venv missing it raises
+# ModuleNotFoundError right here — before main() can explain what to do, and
+# in a way start-atom.sh's `until python ...` turns into a restart loop.
+# feature_models_missing() reports _OWW_IMPORT_ERROR as actionable text.
+try:
+    from openwakeword.model import Model
+    _OWW_IMPORT_ERROR = None
+except Exception as _exc:            # pragma: no cover - environment guard
+    Model = None
+    _OWW_IMPORT_ERROR = _exc
+
+try:
+    # Proper polyphase resampling (anti-aliased). scipy is already a pinned
+    # pocket-ai dependency, so this is available on every real install; the
+    # np.interp fallback below only runs in a stripped environment.
+    from scipy.signal import resample_poly
+except Exception:
+    resample_poly = None
 
 # ----------------------------- settings (env-overridable) ----------
 BACKEND = os.environ.get("ATOM_BACKEND", "http://localhost:8000")
@@ -78,12 +97,89 @@ def pick_input_rate(pa, device_index):
 
 
 def resample_16k(frame, src):
+    """Downsample a hardware frame to openWakeWord's 16 kHz.
+
+    Uses polyphase resampling, which low-pass filters before decimating.
+    Plain linear interpolation (the previous form, kept as a fallback) has
+    no anti-alias filter: at 48 kHz it folded everything above 8 kHz back
+    into the speech band, feeding the model audio that does not match the
+    clean 16 kHz clips it was trained on and costing real detection
+    accuracy. Output length is pinned so every frame stays exactly 1280
+    samples, which the barge-in loop relies on.
+    """
     if src == OWW_RATE:
         return frame
-    dur = len(frame) / src
-    x_old = np.linspace(0, dur, num=len(frame), endpoint=False)
-    x_new = np.linspace(0, dur, num=int(dur * OWW_RATE), endpoint=False)
-    return np.interp(x_new, x_old, frame).astype(np.int16)
+    want = int(round(len(frame) * OWW_RATE / src))
+    if resample_poly is not None:
+        from fractions import Fraction
+        f = Fraction(OWW_RATE, src).limit_denominator(1000)
+        out = resample_poly(frame.astype(np.float32), f.numerator, f.denominator)
+    else:
+        dur = len(frame) / src
+        x_old = np.linspace(0, dur, num=len(frame), endpoint=False)
+        x_new = np.linspace(0, dur, num=want, endpoint=False)
+        out = np.interp(x_new, x_old, frame)
+    if len(out) > want:
+        out = out[:want]
+    elif len(out) < want:
+        out = np.pad(out, (0, want - len(out)))
+    return np.clip(out, -32768, 32767).astype(np.int16)
+
+
+def feature_models_missing() -> str:
+    """Return a human explanation if openWakeWord's shared feature models are
+    absent, else "".
+
+    openWakeWord ships NO model binaries in its wheel: every Model() builds an
+    AudioFeatures, which loads melspectrogram.onnx and embedding_model.onnx
+    from the package's own resources/models directory. When they are missing
+    onnxruntime raises a bare NO_SUCHFILE deep inside the constructor — and
+    because start-atom.sh runs this listener under `until python ...`, a crash
+    here becomes a restart every 3 seconds forever. Detect it first and exit
+    cleanly (status 0) so the watchdog stops instead of spinning.
+    """
+    if _OWW_IMPORT_ERROR is not None:
+        exc = _OWW_IMPORT_ERROR
+        return (f"openWakeWord is not importable ({exc}).\n"
+                "  Install its dependencies inside the app venv:\n"
+                "    cd ~/pocket-ai && source .venv/bin/activate\n"
+                "    pip install --no-deps openwakeword==0.6.0\n"
+                "    pip install 'scikit-learn>=1,<2'")
+    import openwakeword
+    res = Path(openwakeword.__file__).parent / "resources" / "models"
+    missing = [n for n in ("melspectrogram.onnx", "embedding_model.onnx")
+               if not (res / n).exists()]
+    if not missing:
+        return ""
+    return ("openWakeWord's shared feature models are not downloaded "
+            f"({', '.join(missing)}).\n"
+            "  These are separate from hey_atom.onnx and are required by it.\n"
+            "  With the Pi online, fix it with:\n"
+            "    bash ~/atom-pi/install.sh --sync\n"
+            "  or directly:\n"
+            "    cd ~/pocket-ai && source .venv/bin/activate\n"
+            "    python -c \"import openwakeword.utils as u; "
+            "u.download_models(model_names=['hey_atom'])\"")
+
+
+def open_stream_with_retry(open_stream, attempts=5, delay=0.25):
+    """Open the mic, tolerating a backend that has not let go of it yet.
+
+    After handing capture to the backend we reopen the device almost
+    immediately for barge-in. ALSA may still have it briefly, and PyAudio
+    raises rather than waiting — which used to kill the listener outright
+    and hand it to the watchdog. Retry briefly, then give up gracefully.
+    """
+    for i in range(attempts):
+        try:
+            return open_stream()
+        except Exception as exc:
+            if i == attempts - 1:
+                print(f"  !! microphone still busy ({exc}) — "
+                      "continuing without barge-in for this exchange")
+                return None
+            time.sleep(delay)
+    return None
 
 
 def play_ack():
@@ -127,7 +223,7 @@ def run_voice_session(open_stream, model):
             time.sleep(LISTEN_SECONDS)
             ws.send(json.dumps({"type": "toggle_voice"}))   # stop + respond
             print("  -> handed to ATOM (thinking/speaking)")
-            stream = open_stream() if BARGE_IN else None
+            stream = open_stream_with_retry(open_stream) if BARGE_IN else None
             interrupted = False
             ws.settimeout(0.05 if BARGE_IN else 120)
             try:
@@ -205,6 +301,16 @@ def main():
         print("  Until then: the touchscreen mic button works as normal.")
         print("=" * 62)
         raise SystemExit(0)
+    problem = feature_models_missing()
+    if problem:
+        print("=" * 62)
+        print("  Wake word cannot start.")
+        print()
+        print(" ", problem.replace("\n", "\n "))
+        print()
+        print("  Until then: the touchscreen mic button works as normal.")
+        print("=" * 62)
+        raise SystemExit(0)   # 0 = do not let the watchdog restart-loop
     try:
         model = Model(wakeword_models=[str(model_path)],
                       inference_framework="onnx")
@@ -250,7 +356,11 @@ def main():
                 run_voice_session(open_stream, model)
                 model.reset()
                 time.sleep(COOLDOWN)
-                stream = open_stream()   # re-arm
+                stream = open_stream_with_retry(open_stream)   # re-arm
+                if stream is None:
+                    print("  !! could not reopen the microphone — stopping "
+                          "so the watchdog can restart cleanly.")
+                    raise SystemExit(1)
                 print("Re-armed. Listening for wake word...")
     except KeyboardInterrupt:
         print("\nStopping.")
