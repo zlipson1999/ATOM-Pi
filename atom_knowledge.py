@@ -1,12 +1,14 @@
 """
 ATOM-Pi Local Knowledge (ATOM-owned module — not an upstream patch)
 ====================================================================
-Real retrieval from an external USB drive: Kiwix/ZIM collections and
-document libraries (PDF/EPUB/TXT/MD), on drives up to multi-TB.
+Real retrieval from a local library: Kiwix/ZIM collections and document
+libraries (PDF/EPUB/TXT/MD), on volumes up to multi-TB. The library may
+live on the Pi's own NVMe drive (~/atom-library) or on a plugged-in USB
+drive -- both are found automatically, removable taking precedence.
 
 Design rules honored:
-  * Content STAYS on the external drive; only a compact SQLite FTS5
-    index (text snippets + paths) lives on the Pi at
+  * Content STAYS where it is -- nothing is copied. Only a compact
+    SQLite FTS5 index (text snippets + paths) lives at
     ~/pocket-ai/library_index/ for fast retrieval.
   * Disconnect-safe: every query re-checks the mount; a missing drive
     returns a friendly "library offline" answer, never a crash, and
@@ -84,45 +86,107 @@ def _scan(root: Path, match, limit: int, max_depth: int) -> list[Path]:
 
 
 _LIB_CACHE: Path | None = None
+_LIB_SOURCE: str = "none"      # "configured" | "usb" | "internal" | "none"
+
+
+def removable_roots() -> list[Path]:
+    """Mounted volumes that could hold a library. Both /media/<user>/<label>
+    and /media/<label> are covered, which is the difference between a desktop
+    automount and a hand-written fstab entry."""
+    roots = []
+    for base in (Path("/media"), Path("/mnt")):
+        if base.exists():
+            roots += [d for d in base.glob("*/*") if d.is_dir()]
+            roots += [d for d in base.glob("*") if d.is_dir()]
+    return roots
+
+
+def internal_candidates() -> list[Path]:
+    """Fixed on-board locations to check for a library.
+
+    The Pi now boots from an NVMe drive with room to spare, so requiring a
+    USB stick to hold the library is an unnecessary constraint. These are
+    checked in order; the first that exists and has content wins.
+    """
+    return [
+        Path.home() / "atom-library",        # ~/atom-library  (the obvious one)
+        HOME / "atom-library",               # beside the app: ~/pocket-ai/atom-library
+        Path("/srv/atom-library"),           # the FHS answer for served data
+        Path("/opt/atom-library"),
+    ]
+
+
+def _has_content(p: Path) -> bool:
+    """True if a directory looks like a library rather than an empty folder."""
+    if not p.is_dir():
+        return False
+    if _scan(p, lambda e: e.suffix.lower() == ".zim", limit=1, max_depth=3):
+        return True
+    return bool(_scan(p, lambda e: e.suffix.lower() in DOC_EXT, limit=1, max_depth=3))
+
+
+def library_source() -> str:
+    """Where the current library came from. Set by find_library()."""
+    return _LIB_SOURCE
 
 
 def find_library() -> Path | None:
-    """The library root: $ATOM_LIBRARY_PATH if set, else the first
-    mounted volume under /media or /mnt containing an 'atom-library'
-    folder or any .zim file.
+    """The library root, searched in this order:
+
+      1. $ATOM_LIBRARY_PATH             — an explicit setting always wins
+      2. removable media                — /media or /mnt, a drive you plugged in
+      3. internal storage               — ~/atom-library and friends, on the NVMe
+
+    Removable is checked before internal on purpose: plugging a drive in is a
+    deliberate act, and it should take precedence over whatever is sitting on
+    the boot disk. With no drive attached, the internal library is used, so a
+    USB stick is no longer required at all.
 
     Disconnect-safe: the discovered root is remembered but re-validated on
-    every call, so unplugging the drive is noticed immediately and
-    replugging resumes without a fresh scan. Only a genuinely absent
-    library pays for a search, and that search is depth-bounded.
+    every call, so unplugging the drive is noticed immediately and replugging
+    resumes without a fresh scan. Only a genuinely absent library pays for a
+    search, and that search is depth-bounded.
     """
-    global _LIB_CACHE
+    global _LIB_CACHE, _LIB_SOURCE
     # Read the environment live rather than at import: start-atom.sh sources
     # .env before launching, but atom_doctor and the CLI import this module
     # directly, where a value set afterwards used to be ignored.
     env = os.environ.get("ATOM_LIBRARY_PATH", "").strip()
     if env:
         p = Path(env)
-        return p if p.exists() else None
+        if p.exists():
+            _LIB_CACHE, _LIB_SOURCE = p, "configured"
+            return p
+        _LIB_SOURCE = "none"
+        return None
     if _LIB_CACHE is not None and _LIB_CACHE.exists():
         return _LIB_CACHE
-    _LIB_CACHE = None
-    roots = []
-    for base in (Path("/media"), Path("/mnt")):
-        if base.exists():
-            roots += [d for d in base.glob("*/*") if d.is_dir()]
-            roots += [d for d in base.glob("*") if d.is_dir()]
-    for r in roots:
+    _LIB_CACHE, _LIB_SOURCE = None, "none"
+
+    # --- 2. removable media ---------------------------------------------
+    for r in removable_roots():
         if (r / "atom-library").is_dir():
-            _LIB_CACHE = r / "atom-library"
+            _LIB_CACHE, _LIB_SOURCE = r / "atom-library", "usb"
             return _LIB_CACHE
-    for r in roots:
+    for r in removable_roots():
         # Shallow: a .zim buried more than a few levels down on a big drive is
         # not worth stalling every voice query over. Point ATOM_LIBRARY_PATH
         # at it instead.
         if _scan(r, lambda e: e.suffix.lower() == ".zim", limit=1, max_depth=3):
-            _LIB_CACHE = r
+            _LIB_CACHE, _LIB_SOURCE = r, "usb"
             return _LIB_CACHE
+
+    # --- 3. internal storage --------------------------------------------
+    # Content-checked rather than existence-checked: an empty ~/atom-library
+    # left behind by a tidy-up should not shadow a drive the user plugs in
+    # later, nor report a connected library with nothing in it.
+    for p in internal_candidates():
+        try:
+            if _has_content(p):
+                _LIB_CACHE, _LIB_SOURCE = p, "internal"
+                return p
+        except (PermissionError, OSError):
+            continue
     return None
 
 
@@ -396,7 +460,9 @@ def compare_sources(query: str = "") -> str:
 def status() -> str:
     root = find_library()
     if root is None:
-        return "LIBRARY: not connected (set ATOM_LIBRARY_PATH or plug in a drive with an atom-library folder or .zim files)"
+        return ("LIBRARY: not found (put it in ~/atom-library on the internal "
+                "drive, plug in a drive with an atom-library folder or .zim "
+                "files, or set ATOM_LIBRARY_PATH)")
     z = len(_zims(root))
     try:
         con = _db(root)
@@ -406,7 +472,10 @@ def status() -> str:
             con.close()
     except Exception:
         n = 0
-    return f"LIBRARY: {root} | {z} ZIM file(s) | {n} indexed document(s)"
+    where = {"configured": "configured", "usb": "removable",
+             "internal": "internal"}.get(library_source(), "")
+    return (f"LIBRARY: {root} | {where} | {z} ZIM file(s) | "
+            f"{n} indexed document(s)")
 
 
 if __name__ == "__main__":

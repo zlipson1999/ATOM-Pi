@@ -146,13 +146,20 @@ more/better samples — that's a Phase 0 loop, not a code fix.
 
 ---
 
-## Phase 3 — USB knowledge library (content stays on the drive)
+## Phase 3 — knowledge library (content stays where it is)
 
-Attach the multi-terabyte drive with your `atom-library` folder
-(ZIMs and/or PDFs/EPUBs/TXT).
+The library can live in either place, and both must be checked:
+
+- **Internal** — put it in `~/atom-library` on the Pi's own drive
+- **Removable** — attach a drive with an `atom-library` folder or `.zim`
+  files at its root
+
+With both present, the removable drive must win: plugging one in is a
+deliberate act and should override the internal copy. Unplug it and the
+internal library must come back without a restart.
 
 ```
-python atom_knowledge.py --status      # must show the drive path + counts
+python atom_knowledge.py --status      # must show the path, which source, and counts
 python atom_knowledge.py --index      # first run may take a long time on big collections
 python atom_knowledge.py "raspberry pi"
 ```
@@ -169,14 +176,17 @@ Pi?" and "Hey ATOM, compare my local library with what's online."
 
 | Check | Result | Measured |
 |---|---|---|
-| Drive detected + mounted | | path: |
+| Internal library found (no drive attached) | | path: |
+| Removable drive found when attached | | path: |
+| Attached drive overrides the internal copy | | |
+| Empty `~/atom-library` is ignored, not reported as a library | | |
 | ZIMs detected | | count: |
 | Indexing completes | | duration: |
 | search_library answers with real titles/paths | | latency: s |
 | compare_sources returns BOTH labeled sections | | latency: s |
-| Unplug mid-session → friendly "library offline" answer, assistant keeps working | | |
-| Replug → next library question works without re-indexing | | |
-| Library content still only on the USB drive (Pi holds only `library_index/`) | | |
+| Unplug mid-session → falls back to the internal library, or answers "library offline", and the assistant keeps working | | |
+| Replug → next library question uses the drive again without re-indexing | | |
+| Library content never copied — the Pi holds only `library_index/` | | |
 
 ---
 

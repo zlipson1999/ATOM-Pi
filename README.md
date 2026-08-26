@@ -114,7 +114,7 @@ run  -> everything: Hailo stack, pocket-ai clone, Python env,
 | Wake word ears | `wakeword_listener.py`: openWakeWord -> `{"type":"toggle_voice"}` on the real `/ws/voice`; releases the mic to Whisper; re-arms only after backend reports `idle` (no self-triggering) |
 | Camera on voice chat | listener POSTs `/camera/start` on wake |
 | Visual reasoning | `describe_scene` runner appended to `tool_ai.py`'s `TOOL_RUNNERS`; schema in `tools.json`; scene questions added to the router's tool route; Moondream via Ollama |
-| Local USB library | ATOM-owned `atom_knowledge.py` (not a patch): Kiwix via `kiwix-serve`, documents via a local FTS index; `search_library` + `compare_sources` tools |
+| Local library | ATOM-owned `atom_knowledge.py` (not a patch): Kiwix via `kiwix-serve`, documents via a local FTS index; `search_library` + `compare_sources` tools. Found automatically on the Pi's internal drive (`~/atom-library`) **or** a plugged-in USB drive — removable wins when both are present |
 | Full-body robot GUI | `Home.jsx` already renders its avatar from the backend's `voice_status` events — one verified import swap routes that real state into `AtomRobot.jsx` |
 | ATOM hub | `Home.jsx`: title becomes ATOM and the menu becomes VOICE / CHAT / VISION / LIBRARY, with DESKTOP set apart below (it leaves ATOM rather than doing something with it) |
 | VOICE tile | calls the backend's existing `toggleVoice()` — the same action tapping the robot already performs, made discoverable. Works without a wake model |

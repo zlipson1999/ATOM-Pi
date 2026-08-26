@@ -1,7 +1,10 @@
 """
 ATOM-Pi Library API (ATOM-owned module — not an upstream patch)
 ===============================================================
-Puts the USB knowledge library behind HTTP so the touchscreen can use it.
+Puts the knowledge library behind HTTP so the touchscreen can use it. The
+library may sit on the Pi's internal drive (~/atom-library) or on a
+plugged-in USB drive; atom_knowledge resolves whichever is present and
+reports which one via `source`.
 Until now atom_knowledge.py was reachable only as a chat tool or from the
 CLI, so there was no way to browse the drive from the robot itself.
 
@@ -9,7 +12,7 @@ Exposed as a FastAPI APIRouter rather than endpoints edited into app.py:
 apply_patches.py then only has to add an import and one include_router()
 line, which is a far smaller anchor to keep working against upstream.
 
-    GET  /library/status   drive + index summary
+    GET  /library/status   library location + index summary
     POST /library/search   {"query": "..."} -> real retrieved passages
     POST /library/index    (re)index documents on the drive
 
@@ -44,8 +47,11 @@ async def library_status():
     def work():
         root, path = _root_info()
         if root is None:
-            return {"connected": False, "path": None, "zims": 0, "documents": 0,
-                    "detail": "No library drive found. Plug in the drive, or set "
+            return {"connected": False, "path": None, "source": "none",
+                    "zims": 0, "documents": 0,
+                    "detail": "No library found. Put it in ~/atom-library on "
+                              "the internal drive, plug in a drive with an "
+                              "atom-library folder or .zim files, or set "
                               "ATOM_LIBRARY_PATH in .env."}
         zims = len(ak._zims(root))
         docs = 0
@@ -57,8 +63,8 @@ async def library_status():
                 con.close()
         except Exception as exc:
             logger.warning("library index unreadable: %s", exc)
-        return {"connected": True, "path": path, "zims": zims, "documents": docs,
-                "detail": None}
+        return {"connected": True, "path": path, "source": ak.library_source(),
+                "zims": zims, "documents": docs, "detail": None}
     return await run_in_threadpool(work)
 
 
@@ -74,7 +80,7 @@ async def library_search(q: Query):
         root, path = _root_info()
         if root is None:
             return {"query": query, "connected": False, "results": [],
-                    "detail": "The library drive isn't connected."}
+                    "detail": "No library is available right now."}
         try:
             hits = ak.kiwix_search(root, query) + ak.doc_search(root, query)
         except Exception as exc:
@@ -100,7 +106,9 @@ async def library_index():
     def work():
         root, _ = _root_info()
         if root is None:
-            return {"connected": False, "detail": "No library drive found."}
+            return {"connected": False,
+                    "detail": "No library found on internal storage or a "
+                              "connected drive."}
         try:
             return {"connected": True, "detail": ak.index_documents(root)}
         except Exception as exc:

@@ -1,9 +1,10 @@
 /**
  * ATOM-Pi — LIBRARY screen (ATOM-owned component, not an upstream patch)
  *
- * Surfaces the USB knowledge library on the touchscreen. Until now
- * atom_knowledge.py was reachable only as a chat tool or from the CLI,
- * so there was no way to see what is actually on the drive.
+ * Surfaces the knowledge library on the touchscreen -- whether it lives on
+ * the Pi's internal drive or on a plugged-in USB drive. Until now
+ * atom_knowledge.py was reachable only as a chat tool or from the CLI, so
+ * there was no way to see what the library actually holds.
  *
  * Talks to the ATOM library router (atom_library_api.py):
  *   GET  /library/status   POST /library/search   POST /library/index
@@ -23,6 +24,15 @@ import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../apiClient.js';
 import { useFocusableInput } from '../contexts/KeyboardContext.jsx';
 import LoadingSpinner from './LoadingSpinner';
+
+/* Where the library was found. The backend resolves internal storage and
+   removable drives itself; this only names what it chose, so the screen never
+   claims a USB drive is present when the library is actually on the NVMe. */
+const SOURCE_LABEL = {
+    internal: 'ON THIS PI',
+    usb: 'USB DRIVE',
+    configured: 'CONFIGURED PATH'
+};
 
 export default function AtomLibrary() {
     const navigate = useNavigate();
@@ -104,13 +114,13 @@ export default function AtomLibrary() {
                         <span className="text-[var(--pixel-border)]">CHECKING DRIVE...</span>
                     ) : connected ? (
                         <span className="text-[var(--pixel-accent)]">
-                            DRIVE CONNECTED
+                            {SOURCE_LABEL[status.source] || 'LIBRARY READY'}
                             <span className="text-[var(--pixel-text)]">
                                 {' '}&middot; {status.zims} ZIM &middot; {status.documents} DOCS
                             </span>
                         </span>
                     ) : (
-                        <span className="text-[#f7768e]">NO DRIVE</span>
+                        <span className="text-[#f7768e]">NO LIBRARY</span>
                     )}
                 </div>
                 <button
@@ -154,8 +164,8 @@ export default function AtomLibrary() {
                         {results === null && !detail && (
                             <p className="font-['VT323'] text-lg text-[var(--pixel-border)]">
                                 {connected
-                                    ? 'Search the books, PDFs and Kiwix content on your drive.'
-                                    : 'Plug in the library drive, or set ATOM_LIBRARY_PATH in .env.'}
+                                    ? 'Search the books, PDFs and Kiwix content in your library.'
+                                    : 'Put a library in ~/atom-library, plug in a drive, or set ATOM_LIBRARY_PATH.'}
                             </p>
                         )}
                         <div className="flex flex-col gap-3">

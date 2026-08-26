@@ -388,6 +388,9 @@ LOG_FILE=atom.log
 ATOM_VERSION=1.0.0-rc2
 POCKET_SHA=${POCKET_SHA}
 BMA_SHA=${BMA_SHA}
+# Library location. Leave blank to auto-detect: a plugged-in drive wins,
+# otherwise ~/atom-library on this Pi's own drive is used. Set a path to
+# override both.
 ATOM_LIBRARY_PATH=
 KIWIX_PORT=8090
 ENVEOF
